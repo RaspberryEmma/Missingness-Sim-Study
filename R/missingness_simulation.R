@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 07/10/2025
+# Most Recent Edit: 13/10/2025
 # ****************************************
 
 
@@ -27,7 +27,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dplyr", "glmnet", "speedglm", "tidyr")
+using("dplyr", "glmnet", "mice", "speedglm", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
@@ -52,7 +52,7 @@ causal            <- 0.5
 
 binary_X          <- FALSE
 binary_Y          <- FALSE
-binary_Z          <- FALSE
+binary_Z          <- TRUE
 
 num_total_conf  <- 32
 num_meas_conf   <- 32
@@ -558,60 +558,19 @@ generate_dataset <- function() {
 
 # ----- Missingness mechanisms -----
 
-apply_MCAR_missingness <- function(data = NULL) {
-  message("\n***** MCAR *****")
-  print(head(data))
-  
-  message("\nX = Low, Y = low subgroup covariates")
-  low_low_indices <- c(1, 5, 9, 13, 17, 21, 25, 29)
-  print(paste0("Z", low_low_indices))
-  
-  message("\nX = Low, Y = high subgroup covariates")
-  print(paste0("Z", (low_low_indices + 1)))
-  
-  message("\nX = High, Y = low subgroup covariates")
-  print(paste0("Z", (low_low_indices + 2)))
-  
-  message("\nX = High, Y = high subgroup covariates")
-  print(paste0("Z", (low_low_indices + 3)))
-  
-  message("\n We pick an X=High, Y-High confounder to make MCAR")
-  print("Z4")
-
-  # MCAR Missingness
+apply_MCAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
+  # MCAR missingness selection vector
   MCAR_missingness <- rbinom(n_obs, size=1, prob=c(0.80))
-  print(head(MCAR_missingness))
   
   # Apply censorship to variable
-  print(head(data[, "Z4"]))
-  data[, "Z4"][MCAR_missingness == 1] <- NA
-  print(head(data[, "Z4"]))
+  data[, vars_to_censor][MCAR_missingness == 1] <- NA
 
   return (data)
 }
 
 
-apply_MNAR_missingness <- function(data = NULL) {
-  message("\n***** MNAR *****")
-  print(head(data))
-  
-  message("\nX = Low, Y = low subgroup covariates")
-  low_low_indices <- c(1, 5, 9, 13, 17, 21, 25, 29)
-  print(paste0("Z", low_low_indices))
-  
-  message("\nX = Low, Y = high subgroup covariates")
-  print(paste0("Z", (low_low_indices + 1)))
-  
-  message("\nX = High, Y = low subgroup covariates")
-  print(paste0("Z", (low_low_indices + 2)))
-  
-  message("\nX = High, Y = high subgroup covariates")
-  print(paste0("Z", (low_low_indices + 3)))
-  
-  message("\n We pick an X=High, Y-High confounder to make MCAR")
-  print("Z4")
-  
-  # MNAR Missingness
+apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
+  # MNAR missingness probability of censorship depends on data value
   psel <- rep(0.1, times = n_obs)
   for (i in 1:n_obs) {
     if (data[i, "Z4"] >= 3) {
@@ -622,16 +581,43 @@ apply_MNAR_missingness <- function(data = NULL) {
     }
   }
   
+  # MNAR missingness selection vector
   MNAR_missingness <- rbinom(n_obs, size=1, prob=psel)
-  print(head(psel))
-  print(head(MNAR_missingness))
   
   # Apply censorship to variable
-  print(head(data[, "Z4"]))
-  data[, "Z4"][MNAR_missingness == 1] <- NA
-  print(head(data[, "Z4"]))
+  data[, vars_to_censor][MNAR_missingness == 1] <- NA
   
   return (data)
+}
+
+
+apply_CCA <- function(data = NULL) {
+  return (data[complete.cases(data), ])
+}
+
+
+# Normal Z      -> imp_method = "pmm"     = predictive mean matching
+# Binary Z      -> imp_method = "logreg"  = logistic regression
+# Categorical Z -> imp_method = "polyreg" = polytomous regression
+apply_MI <- function(data = NULL, imp_method = NULL) {
+  # convert to factor where applicable
+  if (binary_Z) {
+    vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
+    for (var in vars_with_missingness) {
+      data[, var] <- as.factor(data[, var])
+    }
+  }
+  
+  imp <- mice(data,
+              m      = 5,     # number of imputations
+              maxit  = 20,    # number of iterations
+              method = imp_method)
+  
+  imp_data <- complete(imp,
+                       action  = 1L,    # first imputed dataset
+                       include = FALSE) # do not include original data
+  
+  return (imp_data)
 }
 
 
@@ -698,21 +684,46 @@ for (repetition in 1:n_rep) {
   # generate data
   dataset   <- generate_dataset()
   
-  # apply MCAR missingness via censorship
-  MCAR_dataset <- apply_MCAR_missingness(data = dataset)
+  message("\nX = Low, Y = low subgroup covariates")
+  low_low_indices <- c(1, 5, 9, 13, 17, 21, 25, 29)
+  print(paste0("Z", low_low_indices))
+  
+  message("\nX = Low, Y = high subgroup covariates")
+  print(paste0("Z", (low_low_indices + 1)))
+  
+  message("\nX = High, Y = low subgroup covariates")
+  print(paste0("Z", (low_low_indices + 2)))
+  
+  message("\nX = High, Y = high subgroup covariates")
+  print(paste0("Z", (low_low_indices + 3)))
+  
+  message("\n We pick an X=High, Y-High confounder to make MCAR")
+  print("Z4")
+  
+  # copy of initial dataset with no missingness
+  full_dataset <- dataset
   
   # apply MCAR missingness via censorship
-  MNAR_dataset <- apply_MNAR_missingness(data = dataset)
+  MCAR_dataset <- apply_MCAR_missingness(data           = dataset,
+                                         vars_to_censor = c("Z4"))
   
-  # apply MI to impute missing values
-  MI_MCAR_dataset <- NULL
-  MI_MNAR_dataset <- NULL
+  # apply MCAR missingness via censorship
+  MNAR_dataset <- apply_MNAR_missingness(data           = dataset,
+                                         vars_to_censor = c("Z4"))
   
   # apply CCA to remove missing values
-  CCA_MCAR_dataset <- MCAR_dataset[complete.cases(MCAR_dataset), ]
-  CCA_MNAR_dataset <- MNAR_dataset[complete.cases(MNAR_dataset), ]
+  CCA_MCAR_dataset <- apply_CCA(MCAR_dataset)
+  CCA_MNAR_dataset <- apply_CCA(MNAR_dataset)
   
-  stop("testing")
+  # apply MI to impute missing values
+  imp_method <- "pmm"
+  if (binary_Z) {
+    imp_method <- "logreg"
+  }
+  MI_MCAR_dataset <- apply_MI(data = MCAR_dataset, imp_method = imp_method)
+  MI_MNAR_dataset <- apply_MI(data = MNAR_dataset, imp_method = imp_method)
+  
+  dataset <- full_dataset
   
   # cut-up versions of the data as needed
   X_dataset <- subset(dataset, select=-c(Y))
