@@ -1,0 +1,4 @@
+"","causal_true_value","causal_estimate","causal_bias","causal_bias_proportion","causal_coverage","open_paths","blocked_paths","proportion_paths","empirical_SE","model_SE"
+"fully_adjusted",0.5,0.532941781388787,0.0329417813887874,0.0658835627775749,0,32,28,0.875,NA,0.0121551634103473
+"unadjusted",0.5,1.07365195900235,0.573651959002348,1.1473039180047,0,32,0,0,NA,0.00831408191200904
+"two_step_lasso",0.5,0.532941781388787,0.0329417813887874,0.0658835627775749,0,32,28,0.875,NA,0.0121551634103473
