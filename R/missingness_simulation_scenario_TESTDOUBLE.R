@@ -45,7 +45,7 @@ set.seed(2025)
 
 # ----- Parameters ------
 
-n_scenario   <- "TEST"
+n_scenario   <- "TESTDOUBLE"
 
 n_obs             <- 50000
 n_rep             <- 1
@@ -175,8 +175,8 @@ determine_subgroup_var_error_Y <- function(var_Y          = NULL,
   RHS   <- var_Y / target_r_sq_Y
   value <- sqrt(LHS * RHS)
   
-  # do NOT double here for bias induction
-  value <- value
+  # double here for bias induction
+  value <- 2 * value
   
   return (value)
 }
@@ -220,8 +220,8 @@ beta_Y_subgroups_formula <- function(beta_X = NULL) {
   
   beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
   
-  # do NOT double here for bias induction
-  beta_Ys <- beta_Ys
+  # double size for bias induction
+  beta_Ys <- 2 * beta_Ys
   
   return (beta_Ys)
 }
