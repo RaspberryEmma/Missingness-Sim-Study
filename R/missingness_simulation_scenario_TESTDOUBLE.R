@@ -37,18 +37,11 @@ if (Sys.getenv("RSTUDIO") == "1") {
 
 
 
-# ----- RNG -----
-
-# currently only one file, no parallel RNG
-set.seed(2025)
-
-
-
 # ----- Parameters ------
 
 n_scenario   <- "TESTDOUBLE"
 
-n_obs             <- 5000
+n_obs             <- 10000
 n_rep             <- 10
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
@@ -64,7 +57,26 @@ num_total_conf  <- 32
 num_meas_conf   <- 28
 num_unmeas_conf <- 4
 
+# missingness handling mechanism
 missingness_handling <- "CCA"
+
+# confounders to be unmeasured
+#vars_to_make_unmeasured <- c()
+vars_to_make_unmeasured <- c("Z1", "Z9", "Z17", "Z25")
+
+# confounders to have missingness applied
+vars_to_censor <- c("Z26")
+
+
+# ----- RNG -----
+
+# test RNG
+set.seed(2025)
+
+# # fix RNG seed based on current scenario
+# seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
+# seed     <- seeds_df %>% filter(simulation_scenario == n_scenario)
+# set.seed(seed$seed)
 
 
 
@@ -425,8 +437,7 @@ generate_dataset <- function() {
   dataset[, 'Z32'] <- Z32
   
   # censor covariates as appropriate
-  drop    <- paste('Z', c(1, 9, 17, 25), sep='')
-  dataset <- dataset[, !(names(dataset) %in% drop)]
+  dataset <- dataset[, !(names(dataset) %in% vars_to_make_unmeasured)]
   
   return (dataset)
 }
@@ -575,8 +586,8 @@ for (repetition in c(1:n_rep)) {
   print(paste0("Running repetition ", repetition, "/", n_rep, ", Expected to finish running at: ", expected_finish))
 
   FULL_dataset <- generate_dataset()
-  MNAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = c('Z26'))
-  MCAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = c('Z26'))
+  MNAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+  MCAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
   
   if (missingness_handling == "CCA") {
     handled_MNAR_dataset <- apply_CCA(MNAR_dataset)
