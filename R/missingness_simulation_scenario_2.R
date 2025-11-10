@@ -1,5 +1,6 @@
 # ****************************************
 # Missingness Simulation Study
+# Scenario 2
 #
 # Simulation procedure for confounder-handling
 # with missingness considerations
@@ -39,10 +40,10 @@ if (Sys.getenv("RSTUDIO") == "1") {
 
 # ----- Parameters ------
 
-n_scenario   <- "TESTDOUBLE"
+n_scenario   <- 2
 
 n_obs             <- 10000
-n_rep             <- 10
+n_rep             <- 2000
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
 target_r_sq_X     <- 0.8
@@ -58,7 +59,7 @@ num_meas_conf   <- 28
 num_unmeas_conf <- 4
 
 # missingness handling mechanism
-missingness_handling <- "naive_MI"
+missingness_handling <- "CCA"
 
 # confounders to be unmeasured
 #vars_to_make_unmeasured <- c()
@@ -71,12 +72,12 @@ vars_to_censor <- c("Z26")
 # ----- RNG -----
 
 # test RNG
-set.seed(2025)
+# set.seed(2025)
 
 # # fix RNG seed based on current scenario
-# seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
-# seed     <- seeds_df %>% filter(simulation_scenario == n_scenario)
-# set.seed(seed$seed)
+seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
+seed     <- seeds_df %>% filter(simulation_scenario == n_scenario)
+set.seed(seed$seed)
 
 
 
@@ -484,93 +485,6 @@ apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
 
 apply_CCA <- function(data = NULL) {
   return (data[complete.cases(data), ])
-}
-
-
-# # Normal Z      -> imp_method = "pmm"     = predictive mean matching
-# # Binary Z      -> imp_method = "logreg"  = logistic regression
-# # Categorical Z -> imp_method = "polyreg" = polytomous regression
-# See: https://www.rdocumentation.org/packages/mice/versions/3.17.0/topics/mice
-apply_naive_MI <- function(data = NULL, num_datasets = NULL, repetitions = NULL, imp_method = NULL) {
-  imp_data <- NULL
-  
-  # find all vars containing missingness to be imputed
-  if (binary_Z) {
-    vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
-    for (var in vars_with_missingness) {
-      data[, var] <- as.factor(data[, var])
-    }
-  }
-  
-  imp <- mice(data,
-              m      = num_datasets, # number of imputations
-              maxit  = repetitions,  # number of iterations
-              method = imp_method)
-  
-  
-  for (i in c(1:num_datasets)) {
-    imp_data <- complete(imp,
-                         action  = i,      # first dataset
-                         include = FALSE)  # do not include original data
-    
-    print(head(imp_data))
-  }
-  
-  stop("naive MI")
-  
-  return (imp_data)
-}
-
-
-# # Normal Z      -> imp_method = "pmm"     = predictive mean matching
-# # Binary Z      -> imp_method = "logreg"  = logistic regression
-# # Categorical Z -> imp_method = "polyreg" = polytomous regression
-# See: https://www.rdocumentation.org/packages/mice/versions/3.17.0/topics/mice
-apply_stacked_MI <- function(data = NULL, num_datasets = NULL, repetitions = NULL, imp_method = NULL) {
-  imp_data <- NULL
-  
-  # find all vars containing missingness to be imputed
-  if (binary_Z) {
-    vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
-    for (var in vars_with_missingness) {
-      data[, var] <- as.factor(data[, var])
-    }
-  }
-  
-  imp <- mice(data,
-              m      = num_datasets, # number of imputations
-              maxit  = repetitions,  # number of iterations
-              method = imp_method)
-  
-  imp_data <- complete(imp,
-                       action  = "long", # stacked
-                       include = FALSE)  # do not include original data
-  
-  return (imp_data)
-}
-
-
-# # Normal Z      -> imp_method = "pmm"     = predictive mean matching
-# # Binary Z      -> imp_method = "logreg"  = logistic regression
-# # Categorical Z -> imp_method = "polyreg" = polytomous regression
-# See: https://www.rdocumentation.org/packages/mice/versions/3.17.0/topics/mice
-apply_resampling_MI <- function(data = NULL, num_datasets = NULL, repetitions = NULL, imp_method = NULL) {
-  imp_data <- NULL
-  
-  # find all vars containing missingness to be imputed
-  if (binary_Z) {
-    vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
-    for (var in vars_with_missingness) {
-      data[, var] <- as.factor(data[, var])
-    }
-  }
-  
-  imp <- mice(data,
-              m      = num_datasets, # number of imputations
-              maxit  = repetitions,  # number of iterations
-              method = imp_method)
-  
-  return (imp_data)
 }
 
 

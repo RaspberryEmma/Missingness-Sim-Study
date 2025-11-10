@@ -27,13 +27,14 @@ RNGkind()
 R.version
 
 # Simulation parameters (upper limits where applicable)
-n_scen     <- 8
-n_rep      <- 2000
-n_obs      <- 10000
-n_base_var <- (32 + 1) # number of variables with no prior cause (upper bound)
+n_scen        <- 8
+n_rep         <- 2000
+n_obs         <- 10000
+n_base_var    <- (32 + 3) # number of variables with no prior cause (all confounders + unseen prior + 2 error terms)
 
 # Required samples for each individual scenario
-n_samples_per_scenario <- as.integer( n_rep * n_obs * n_base_var )
+# Multiply by 1.16 (1 + 5/32) to account for MI
+n_samples_per_scenario <- as.integer( n_rep * n_obs * n_base_var * 1.16)
 print(n_samples_per_scenario)
 
 # Required seeds

@@ -13,7 +13,7 @@
 # ****************************************
 #
 #SBATCH --partition=compute
-#SBATCH --job-name=scenario_TEST
+#SBATCH --job-name=scenario_1
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -32,7 +32,7 @@ cd R
 # Record info
 echo ""
 echo "***** START *****"
-echo "***** Missingness Simulation Study - Simulation TEST *****"
+echo "***** Missingness Simulation Study - Simulation 1 *****"
 echo Start Time:        $(date)
 echo Working Directory: $(pwd)
 echo JOB ID:            ${SLURM_JOBID}
@@ -43,7 +43,7 @@ echo ""
 module load languages/R/4.4.1
 
 # Execute code
-Rscript missingness_simulation_scenario_TEST.R
+Rscript missingness_simulation_scenario_1.R
 
 echo ""
 echo End Time: $(date)

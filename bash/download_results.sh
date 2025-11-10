@@ -5,10 +5,11 @@
 #
 # BluePebble Automation Script
 # Downloads results from HPC to local
+# 
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 07/10/2025
+# Most Recent Edit: 10/11/2025
 # ****************************************
 
 # pull entire repo from BP to local
