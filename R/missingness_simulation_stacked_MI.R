@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 21/11/2025
+# Most Recent Edit: 24/11/2025
 # ****************************************
 
 
@@ -449,14 +449,18 @@ apply_stacked_MI <- function(data = NULL, num_datasets = NULL, repetitions = NUL
     }
   }
   
-  imp <- mice(data,
-              m      = num_datasets, # number of imputations
-              maxit  = repetitions,  # number of iterations
-              method = imp_method)
+  capture.output(                      # suppress command line output
+    imp <- mice(data,
+                m      = num_datasets, # number of imputations
+                maxit  = repetitions,  # number of iterations
+                method = imp_method)
+  )
   
   imp_data <- complete(imp,
                        action  = "long", # stacked
                        include = FALSE)  # do not include original data
+  
+  imp_data <- subset(imp_data, select=-c(.imp, .id))
   
   return (imp_data)
 }
@@ -784,11 +788,11 @@ run_stacked_MI_simulation <- function(n_scenario = NULL,
       
       # MNAR
       lasso_union_MNAR_vars_selected  <- union(lasso_MNAR_vars_selected, lasso_X_MNAR_vars_selected)
-      two_step_lasso_union_MNAR_model <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = MNAR_dataset, family = "binomial")
+      two_step_lasso_union_MNAR_model <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = handled_MNAR_dataset, family = "binomial")
       
       # MCAR
       lasso_union_MCAR_vars_selected  <- union(lasso_MCAR_vars_selected, lasso_X_MCAR_vars_selected)
-      two_step_lasso_union_MCAR_model <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = MCAR_dataset, family = "binomial")
+      two_step_lasso_union_MCAR_model <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = handled_MCAR_dataset, family = "binomial")
       
     } else {
       
@@ -798,11 +802,11 @@ run_stacked_MI_simulation <- function(n_scenario = NULL,
       
       # MNAR
       lasso_union_MNAR_vars_selected  <- union(lasso_MNAR_vars_selected, lasso_X_MNAR_vars_selected)
-      two_step_lasso_union_MNAR_model <- lm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = MNAR_dataset)
+      two_step_lasso_union_MNAR_model <- lm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = handled_MNAR_dataset)
       
       # MCAR
       lasso_union_MCAR_vars_selected  <- union(lasso_MCAR_vars_selected, lasso_X_MCAR_vars_selected)
-      two_step_lasso_union_MCAR_model <- lm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = MCAR_dataset)
+      two_step_lasso_union_MCAR_model <- lm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = handled_MCAR_dataset)
       
     }
     

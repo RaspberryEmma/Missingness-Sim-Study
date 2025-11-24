@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 10/11/2025
+# Most Recent Edit: 24/11/2025
 # ****************************************
 
 
@@ -865,11 +865,11 @@ for (repetition in c(1:n_rep)) {
     
     # MNAR
     lasso_union_MNAR_vars_selected  <- union(lasso_MNAR_vars_selected, lasso_X_MNAR_vars_selected)
-    two_step_lasso_union_MNAR_model <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = MNAR_dataset, family = "binomial")
+    two_step_lasso_union_MNAR_model <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = handled_MNAR_dataset, family = "binomial")
     
     # MCAR
     lasso_union_MCAR_vars_selected  <- union(lasso_MCAR_vars_selected, lasso_X_MCAR_vars_selected)
-    two_step_lasso_union_MCAR_model <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = MCAR_dataset, family = "binomial")
+    two_step_lasso_union_MCAR_model <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = handled_MCAR_dataset, family = "binomial")
     
   } else {
     
@@ -879,11 +879,11 @@ for (repetition in c(1:n_rep)) {
     
     # MNAR
     lasso_union_MNAR_vars_selected  <- union(lasso_MNAR_vars_selected, lasso_X_MNAR_vars_selected)
-    two_step_lasso_union_MNAR_model <- lm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = MNAR_dataset)
+    two_step_lasso_union_MNAR_model <- lm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = handled_MNAR_dataset)
     
     # MCAR
     lasso_union_MCAR_vars_selected  <- union(lasso_MCAR_vars_selected, lasso_X_MCAR_vars_selected)
-    two_step_lasso_union_MCAR_model <- lm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = MCAR_dataset)
+    two_step_lasso_union_MCAR_model <- lm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = handled_MCAR_dataset)
     
   }
   

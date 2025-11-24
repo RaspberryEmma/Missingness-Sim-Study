@@ -434,30 +434,47 @@ apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
 }
 
 
-apply_CCA <- function(data = NULL) {
-  return (data[complete.cases(data), ])
+apply_indicator_encoding <- function(data = NULL) {
+  # find all vars containing missingness to be imputed
+  vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
+  
+  for (var in vars_with_missingness) {
+    # determine missingnness indicator
+    var_indicator <- is.na(data[, var])
+    
+    # encode missing values as zero
+    data[var_indicator, var] <- 0.0
+    
+    # record missingness indicator as seperate variable
+    data[paste0(var, "_missing"), ] <- var_indicator
+  }
+  
+  stop("FIX: var_names are no longer constant - fix everywhere!")
+  
+  return (data)
 }
 
-run_CCA_simulation <- function(n_scenario = NULL,
-                               n_obs      = NULL,
-                               n_rep      = NULL,
-                               
-                               Z_correlation     = NULL,
-                               Z_subgroups       = NULL,
-                               target_r_sq_X     = NULL,
-                               target_r_sq_Y     = NULL,
-                               causal            = NULL,
-                               
-                               binary_X          = NULL,
-                               binary_Y          = NULL,
-                               binary_Z          = NULL,
-                               
-                               num_total_conf  = NULL,
-                               num_meas_conf   = NULL,
-                               num_unmeas_conf = NULL,
-                               
-                               vars_to_make_unmeasured = NULL,
-                               vars_to_censor          = NULL) {
+
+run_indicator_encoding_simulation <- function(n_scenario = NULL,
+                                      n_obs      = NULL,
+                                      n_rep      = NULL,
+                                      
+                                      Z_correlation     = NULL,
+                                      Z_subgroups       = NULL,
+                                      target_r_sq_X     = NULL,
+                                      target_r_sq_Y     = NULL,
+                                      causal            = NULL,
+                                      
+                                      binary_X          = NULL,
+                                      binary_Y          = NULL,
+                                      binary_Z          = NULL,
+                                      
+                                      num_total_conf  = NULL,
+                                      num_meas_conf   = NULL,
+                                      num_unmeas_conf = NULL,
+                                      
+                                      vars_to_make_unmeasured = NULL,
+                                      vars_to_censor          = NULL) {
 
   # ----- Recording results -----
   
@@ -547,9 +564,9 @@ run_CCA_simulation <- function(n_scenario = NULL,
     MNAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
     MCAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
     
-    # apply CCA
-    handled_MNAR_dataset <- apply_CCA(MNAR_dataset)
-    handled_MCAR_dataset <- apply_CCA(MCAR_dataset)
+    # apply stacked MI
+    handled_MNAR_dataset <- apply_indicator_encoding(data = MNAR_dataset)
+    handled_MCAR_dataset <- apply_indicator_encoding(data = MCAR_dataset)
     
     # cut-up versions of the data as needed
     X_FULL_dataset <- subset(FULL_dataset, select=-c(Y))
@@ -755,11 +772,11 @@ run_CCA_simulation <- function(n_scenario = NULL,
       
       # MNAR
       lasso_union_MNAR_vars_selected  <- union(lasso_MNAR_vars_selected, lasso_X_MNAR_vars_selected)
-      two_step_lasso_union_MNAR_model <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = MNAR_dataset, family = "binomial")
+      two_step_lasso_union_MNAR_model <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = handled_MNAR_dataset, family = "binomial")
       
       # MCAR
       lasso_union_MCAR_vars_selected  <- union(lasso_MCAR_vars_selected, lasso_X_MCAR_vars_selected)
-      two_step_lasso_union_MCAR_model <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = MCAR_dataset, family = "binomial")
+      two_step_lasso_union_MCAR_model <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = handled_MCAR_dataset, family = "binomial")
       
     } else {
       
