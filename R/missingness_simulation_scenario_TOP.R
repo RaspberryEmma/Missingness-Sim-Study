@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 24/11/2025
+# Most Recent Edit: 01/12/2025
 # ****************************************
 
 
@@ -65,7 +65,7 @@ missingness_handling <- "CCA"
 vars_to_make_unmeasured <- c("Z1", "Z9", "Z17", "Z25")
 
 # confounders to have missingness applied
-vars_to_censor <- c("Z26")
+vars_to_censor <- c("Z26", "Z27")
 
 
 # ----- RNG -----

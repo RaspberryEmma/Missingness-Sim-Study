@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 24/11/2025
+# Most Recent Edit: 01/12/2025
 # ****************************************
 
 
@@ -391,6 +391,13 @@ generate_dataset <- function(n_obs      = NULL,
   # censor covariates as appropriate
   dataset <- dataset[, !(names(dataset) %in% vars_to_make_unmeasured)]
   
+  # add missingness indicator placeholder variables as appropriate
+  # placeholder as assumed all FALSE (i.e. none NA)
+  # the below does not run for other missingness handling methods
+  for (var in vars_to_censor) {
+    dataset[, paste0(var, "_missing")] <- rep(as.numeric(FALSE), length.out = n_obs)
+  }
+  
   return (dataset)
 }
 
@@ -434,22 +441,21 @@ apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
 }
 
 
-apply_indicator_encoding <- function(data = NULL) {
-  # find all vars containing missingness to be imputed
-  vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
-  
-  for (var in vars_with_missingness) {
+apply_indicator_encoding <- function(data = NULL, vars_to_censor = NULL) {
+  for (var in vars_to_censor) {
     # determine missingnness indicator
+    # TRUE  = 1 = missing
+    # FALSE = 0 = not missing
     var_indicator <- is.na(data[, var])
-    
-    # encode missing values as zero
+
+    # encode missing values of original variable as zero
+    # uses var_indicator as indexes here
     data[var_indicator, var] <- 0.0
-    
-    # record missingness indicator as seperate variable
-    data[paste0(var, "_missing"), ] <- var_indicator
+
+    # record missingness indicator itself as separate variable
+    # uses var_indicator as data here
+    data[, paste0(var, "_missing")] <- as.numeric(var_indicator)
   }
-  
-  stop("FIX: var_names are no longer constant - fix everywhere!")
   
   return (data)
 }
@@ -484,7 +490,15 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
                        "open_paths", "blocked_paths", "proportion_paths",
                        "empirical_SE", "model_SE")
   
-  var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''))
+  # NB: exists only for indicator method
+  if (length(vars_to_censor) == 0) {
+    indicator_var_names <- c()
+  }
+  else {
+    indicator_var_names <- paste(vars_to_censor, '_missing', sep='')
+  }
+  
+  var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''), indicator_var_names)
   var_names_except_Y                <- var_names[ !var_names == 'Y']
   var_names_except_Y_with_intercept <- c("(Intercept)", var_names_except_Y)
   
@@ -561,12 +575,13 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
                                      vars_to_make_unmeasured = vars_to_make_unmeasured,
                                      vars_to_censor          = vars_to_censor,
                                      var_names               = var_names)
+    
     MNAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
     MCAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
     
     # apply stacked MI
-    handled_MNAR_dataset <- apply_indicator_encoding(data = MNAR_dataset)
-    handled_MCAR_dataset <- apply_indicator_encoding(data = MCAR_dataset)
+    handled_MNAR_dataset <- apply_indicator_encoding(data = MNAR_dataset, vars_to_censor = vars_to_censor)
+    handled_MCAR_dataset <- apply_indicator_encoding(data = MCAR_dataset, vars_to_censor = vars_to_censor)
     
     # cut-up versions of the data as needed
     X_FULL_dataset <- subset(FULL_dataset, select=-c(Y))
