@@ -28,7 +28,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("bootImpute", "dplyr", "glmnet", "mice", "speedglm", "tidyr")
+using("dplyr", "glmnet", "mice", "speedglm", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
@@ -59,7 +59,7 @@ num_meas_conf   <- 28
 num_unmeas_conf <- 4
 
 # missingness handling mechanism
-missingness_handling <- "indicator_encoding"
+missingness_handling <- "dichotomize"
 
 # confounders to be unmeasured
 #vars_to_make_unmeasured <- c()

@@ -28,7 +28,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("bootImpute", "dplyr", "glmnet", "mice", "speedglm", "tidyr")
+using("dplyr", "glmnet", "mice", "speedglm", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
