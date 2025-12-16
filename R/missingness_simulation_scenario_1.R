@@ -136,6 +136,23 @@ final_FULL_results <- as.data.frame(apply(FULL_results, c(1,2), mean))
 final_MNAR_results <- as.data.frame(apply(MNAR_results, c(1,2), mean))
 final_MCAR_results <- as.data.frame(apply(MCAR_results, c(1,2), mean))
 
+# record empirical standard error separately
+causal        <- 0.5
+model_methods <- c("fully_adjusted", "unadjusted", "two_step_lasso", "two_step_lasso_X", "two_step_lasso_union")
+for (method in model_methods) {
+  # FULL
+  FULL_causal_effect_estimates                <- c(FULL_results[method, "causal_estimate", ])
+  final_FULL_results[ method, "empirical_SE"] <- sd(FULL_causal_effect_estimates)
+  
+  # MNAR
+  MNAR_causal_effect_estimates                <- c(MNAR_results[method, "causal_estimate", ])
+  final_MNAR_results[ method, "empirical_SE"] <- sd(MNAR_causal_effect_estimates)
+  
+  # MCAR
+  MCAR_causal_effect_estimates                <- c(MCAR_results[method, "causal_estimate", ])
+  final_MCAR_results[ method, "empirical_SE"] <- sd(MCAR_causal_effect_estimates)
+}
+
 # save simulation setup
 sim_setup <- c(n_obs,
                n_rep,
