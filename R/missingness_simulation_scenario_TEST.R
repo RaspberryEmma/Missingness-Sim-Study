@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 16/12/2025
+# Most Recent Edit: 18/12/2025
 # ****************************************
 
 
@@ -198,8 +198,6 @@ simulation_results <- run_CCA_simulation(n_scenario = n_scenario,
 #                                                  vars_to_censor          = vars_to_censor)
 
 
-
-
 FULL_cov_selection <- simulation_results[[1]]
 MNAR_cov_selection <- simulation_results[[2]]
 MCAR_cov_selection <- simulation_results[[3]]
@@ -213,9 +211,10 @@ FULL_results <- simulation_results[[8]]
 MNAR_results <- simulation_results[[9]]
 MCAR_results <- simulation_results[[10]]
 
+sample_size_table <- simulation_results[[11]]
 
 
-# ----- Process results -----
+# ----- Save results -----
 
 # take mean across all repetitions
 final_FULL_cov_selection <- as.data.frame(apply(FULL_cov_selection, c(1,2), mean))
@@ -229,6 +228,8 @@ final_MCAR_coefs <- as.data.frame(apply(MCAR_coefs, c(1,2), mean))
 final_FULL_results <- as.data.frame(apply(FULL_results, c(1,2), mean))
 final_MNAR_results <- as.data.frame(apply(MNAR_results, c(1,2), mean))
 final_MCAR_results <- as.data.frame(apply(MCAR_results, c(1,2), mean))
+
+sample_size_table <- as.data.frame(sample_size_table)
 
 # record empirical standard error separately
 causal        <- 0.5
@@ -246,10 +247,6 @@ for (method in model_methods) {
   MCAR_causal_effect_estimates                <- c(MCAR_results[method, "causal_estimate", ])
   final_MCAR_results[ method, "empirical_SE"] <- sd(MCAR_causal_effect_estimates)
 }
-
-
-
-# ----- Save results -----
 
 # save simulation setup
 sim_setup <- c(n_obs,
@@ -292,6 +289,10 @@ print("Unmeasured confounders")
 print(vars_to_make_unmeasured)
 print("Confounders with missingness")
 print(vars_to_censor)
+
+
+message("\n\n\n ***** Sample sizes *****")
+print(sample_size_table)
 
 
 message("\n\n\n\n ***** True Coefficients *****")
@@ -366,5 +367,7 @@ write.csv(final_MCAR_coefs,   paste("../data/", id_string, "_MCAR_coefs.csv", se
 write.csv(final_FULL_results,   paste("../data/", id_string, "_FULL_results.csv", sep=''))
 write.csv(final_MNAR_results,   paste("../data/", id_string, "_MNAR_results.csv", sep=''))
 write.csv(final_MCAR_results,   paste("../data/", id_string, "_MCAR_results.csv", sep=''))
+
+write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.csv", sep=''))
 
 

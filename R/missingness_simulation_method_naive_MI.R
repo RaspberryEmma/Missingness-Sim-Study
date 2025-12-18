@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 24/11/2025
+# Most Recent Edit: 18/12/2025
 # ****************************************
 
 
@@ -399,9 +399,12 @@ generate_dataset <- function(n_obs      = NULL,
 # ----- Missingness mechanisms and missingness handling -----
 
 apply_MCAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
+  psel <- 0.80
+  
   for (var in vars_to_censor) {
     # MCAR missingness selection vector
-    MCAR_missingness <- rbinom(n_obs, size=1, prob=c(0.80))
+    # missingness = opposite of selection
+    MCAR_missingness <- !rbinom(n_obs, size=1, prob=psel)
     
     # Apply censorship to variable
     data[, var][MCAR_missingness == 1] <- NA
@@ -414,17 +417,19 @@ apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
   for (var in vars_to_censor) {
     # MNAR missingness probability of censorship depends on data value
     psel <- rep(0.1, times = n_obs)
+    
     for (i in 1:n_obs) {
-      if (data[i, var] >= 3) {
+      if (data[i, var] >= 1) {
         psel[i] <- 0.9
       }
-      else if (data[i, var] <= 0.35) {
+      else if (data[i, var] <= -1.65) {
         psel[i] <- 0.7
       }
     }
     
     # MNAR missingness selection vector
-    MNAR_missingness <- rbinom(n_obs, size=1, prob=psel)
+    # missingness = opposite of selection
+    MNAR_missingness <- !rbinom(n_obs, size=1, prob=psel)
     
     # Apply censorship to variable
     data[, var][MNAR_missingness == 1] <- NA
@@ -553,6 +558,10 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
                               dim      = c(n_var_sel_methods, n_results, n_rep),
                               dimnames = list(var_sel_methods, results_methods, 1:n_rep))
   
+  sample_size_table <- array(data     = NaN,
+                             dim      = c(3, 2),
+                             dimnames = list(c("None", "MNAR", "MCAR"), c("complete_cases", "sample_size_after_handling")))
+  
   
   # ----- Simulation procedure ------
   
@@ -604,6 +613,15 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
                                              num_datasets = 5,
                                              repetitions  = 20,
                                              imp_method   = "pmm")
+    
+    # record sample sizes before and after missingness handling is applied
+    # NB: for naive MI, all imputed datasets will have the same sample size
+    sample_size_table["None", "complete_cases"]             <- dim(FULL_dataset)[1]
+    sample_size_table["None", "sample_size_after_handling"] <- dim(FULL_dataset)[1]
+    sample_size_table["MNAR", "complete_cases"]             <- dim(MNAR_dataset[complete.cases(MNAR_dataset), ])[1]
+    sample_size_table["MNAR", "sample_size_after_handling"] <- dim(handled_MNAR_dataset$data)[1]
+    sample_size_table["MCAR", "complete_cases"]             <- dim(MCAR_dataset[complete.cases(MCAR_dataset), ])[1]
+    sample_size_table["MCAR", "sample_size_after_handling"] <- dim(handled_MCAR_dataset$data)[1]
     
     # MI loop here
     MI_FULL_coefs         <- array(data     = NaN,
@@ -1220,7 +1238,9 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
                
                FULL_results,
                MNAR_results,
-               MCAR_results))
+               MCAR_results,
+               
+               sample_size_table))
 }
 
 

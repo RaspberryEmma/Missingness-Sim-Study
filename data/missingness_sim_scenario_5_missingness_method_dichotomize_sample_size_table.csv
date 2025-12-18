@@ -1,0 +1,4 @@
+"","complete_cases","sample_size_after_handling"
+"None",1e+05,1e+05
+"MNAR",25657,1e+05
+"MCAR",25840,1e+05
