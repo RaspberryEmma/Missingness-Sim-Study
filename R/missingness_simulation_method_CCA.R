@@ -399,23 +399,24 @@ generate_dataset <- function(n_obs      = NULL,
 # ----- Missingness mechanisms and missingness handling -----
 
 apply_MCAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
+  # MCAR probability of censorship does not depend on data value
   psel <- 0.80
   
   for (var in vars_to_censor) {
-    # MCAR missingness selection vector
-    # missingness = opposite of selection
-    MCAR_missingness <- !rbinom(n_obs, size=1, prob=psel)
+    # MCAR selection vector
+    MCAR_selection <- rbinom(n_obs, size=1, prob=psel)
     
-    # Apply censorship to variable
-    data[, var][MCAR_missingness == 1] <- NA
+    # Apply censorship to variable for every observation which is NOT selected
+    data[, var][MCAR_selection == 0] <- NA
   }
-  return (data)
+  
+  return (list(data, psel, MCAR_selection))
 }
 
 
 apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
   for (var in vars_to_censor) {
-    # MNAR missingness probability of censorship depends on data value
+    # MNAR probability of censorship depends on data value
     psel <- rep(0.1, times = n_obs)
     
     for (i in 1:n_obs) {
@@ -427,15 +428,14 @@ apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
       }
     }
     
-    # MNAR missingness selection vector
-    # missingness = opposite of selection
-    MNAR_missingness <- !rbinom(n_obs, size=1, prob=psel)
+    # MNAR selection vector
+    MNAR_selection <- rbinom(n_obs, size=1, prob=psel)
     
-    # Apply censorship to variable
-    data[, var][MNAR_missingness == 1] <- NA
+    # Apply censorship to variable for every observation which is NOT selected
+    data[, var][MNAR_selection == 0] <- NA
   }
   
-  return (data)
+  return (list(data, psel, MNAR_selection))
 }
 
 
@@ -553,12 +553,46 @@ run_CCA_simulation <- function(n_scenario = NULL,
                                      vars_to_make_unmeasured = vars_to_make_unmeasured,
                                      vars_to_censor          = vars_to_censor,
                                      var_names               = var_names)
-    MNAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
-    MCAR_dataset <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    
+    MNAR_data       <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    MNAR_dataset    <- MNAR_data[[1]]
+    MNAR_psel       <- MNAR_data[[2]]
+    MNAR_censorship <- MNAR_data[[3]]
+    
+    MCAR_data       <- apply_MCAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    MCAR_dataset    <- MCAR_data[[1]]
+    MCAR_psel       <- MCAR_data[[2]]
+    MCAR_censorship <- MCAR_data[[3]]
+    
+    message("\n\n Missingness Mechanisms")
+    print("MNAR p(selection into sample)")
+    print(summary(as.factor(MNAR_psel)))
+    
+    print("MCAR p(selection into sample)")
+    print(summary(as.factor(MCAR_psel)))
     
     # apply CCA
     handled_MNAR_dataset <- apply_CCA(MNAR_dataset)
     handled_MCAR_dataset <- apply_CCA(MCAR_dataset)
+    
+    message("\n\n\nZ26")
+    print("Before")
+    print(summary(FULL_dataset[, 'Z26']))
+    print("After (MNAR)")
+    print(summary(MNAR_dataset[, 'Z26']))
+    print("After (MCAR)")
+    print(summary(MCAR_dataset[, 'Z26']))
+    
+    message("\n\n\nMissingness mechanism")
+    print("MNAR p(selection into sample)")
+    print(summary(as.factor(MNAR_psel)))
+    print("MNAR proportion selected")
+    print(mean(MNAR_censorship))
+    print("MCAR")
+    print("MCAR p(selection into sample)")
+    print(summary(as.factor(MCAR_psel)))
+    print("MCAR proportion selected")
+    print(mean(MCAR_censorship))
     
     # record sample sizes before and after missingness handling is applied
     # NB: for CCA these will be equal

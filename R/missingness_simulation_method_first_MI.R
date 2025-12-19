@@ -391,13 +391,6 @@ generate_dataset <- function(n_obs      = NULL,
   # censor covariates as appropriate
   dataset <- dataset[, !(names(dataset) %in% vars_to_make_unmeasured)]
   
-  # add missingness indicator placeholder variables as appropriate
-  # placeholder as assumed all FALSE (i.e. none NA)
-  # the below does not run for other missingness handling methods
-  for (var in vars_to_censor) {
-    dataset[, paste0(var, "_missing")] <- rep(as.numeric(FALSE), length.out = n_obs)
-  }
-  
   return (dataset)
 }
 
@@ -446,23 +439,34 @@ apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
 }
 
 
-
-apply_dichotomize <- function(data = NULL, vars_to_censor = NULL) {
-  for (var in vars_to_censor) {
-    var_mean <- mean(data[, var], na.rm = TRUE)
-    
-    # dichotomized_var = 0 if var < mean
-    # dichotomized_var = 1 if var >= mean or if var is NA
-    dichotomized_var <- as.numeric(data[, var] >= var_mean) # preserves NA
-    dichotomized_var[is.na(dichotomized_var)] <- 1          # all NA -> 1
-    
-    data[, var] <- dichotomized_var
+# See: https://www.rdocumentation.org/packages/mice/versions/3.17.0/topics/mice
+apply_first_MI <- function(data = NULL, num_datasets = NULL, repetitions = NULL, imp_method = NULL) {
+  imp_data <- NULL
+  
+  # find all vars containing missingness to be imputed
+  if (binary_Z) {
+    vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
+    for (var in vars_with_missingness) {
+      data[, var] <- as.factor(data[, var])
+    }
   }
-  return (data)
+  
+  capture.output(                      # suppress command line output
+    imp <- mice(data,
+                m      = num_datasets, # number of imputations
+                maxit  = repetitions,  # number of iterations
+                method = imp_method)
+  )
+  
+  imp_data <- complete(imp,
+                       action  = 1,      # first
+                       include = FALSE)  # do not include original data
+  
+  return (imp_data)
 }
 
 
-run_dichotomize_simulation <- function(n_scenario = NULL,
+run_first_MI_simulation <- function(n_scenario = NULL,
                                       n_obs      = NULL,
                                       n_rep      = NULL,
                                       
@@ -491,15 +495,7 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
                        "open_paths", "blocked_paths", "proportion_paths",
                        "empirical_SE", "model_SE")
   
-  # NB: exists only for indicator method
-  if (length(vars_to_censor) == 0) {
-    indicator_var_names <- c()
-  }
-  else {
-    indicator_var_names <- paste(vars_to_censor, '_missing', sep='')
-  }
-  
-  var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''), indicator_var_names)
+  var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''))
   var_names_except_Y                <- var_names[ !var_names == 'Y']
   var_names_except_Y_with_intercept <- c("(Intercept)", var_names_except_Y)
   
@@ -591,16 +587,38 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
     MCAR_psel       <- MCAR_data[[2]]
     MCAR_censorship <- MCAR_data[[3]]
     
-    message("\n\n Missingness Mechanisms")
+    # apply first MI
+    # imp_method = norm -> MI using Bayesian linear regression
+    # see: section "Details" of https://www.rdocumentation.org/packages/mice/versions/3.17.0/topics/mice
+    handled_MNAR_dataset <- apply_first_MI(data         = MNAR_dataset,
+                                             num_datasets = 5,
+                                             repetitions  = 20,
+                                             imp_method   = "norm")
+    handled_MCAR_dataset <- apply_first_MI(data         = MCAR_dataset,
+                                             num_datasets = 5,
+                                             repetitions  = 20,
+                                             imp_method   = "norm")
+    
+    message("\n\n\nZ26")
+    print("Before")
+    print(summary(FULL_dataset[, 'Z26']))
+    print("After (MNAR)")
+    print(summary(MNAR_dataset[, 'Z26']))
+    print("After (MCAR)")
+    print(summary(MCAR_dataset[, 'Z26']))
+    
+    message("\n\n\nMissingness mechanism")
     print("MNAR p(selection into sample)")
     print(summary(as.factor(MNAR_psel)))
-    
+    print("MNAR proportion selected")
+    print(mean(MNAR_censorship))
+    print("MCAR")
     print("MCAR p(selection into sample)")
     print(summary(as.factor(MCAR_psel)))
+    print("MCAR proportion selected")
+    print(mean(MCAR_censorship))
     
-    # apply dichotomize
-    handled_MNAR_dataset <- apply_dichotomize(data = MNAR_dataset, vars_to_censor = vars_to_censor)
-    handled_MCAR_dataset <- apply_dichotomize(data = MCAR_dataset, vars_to_censor = vars_to_censor)
+    stop("dev")
     
     # record sample sizes before and after missingness handling is applied
     sample_size_table["None", "complete_cases"]             <- dim(FULL_dataset)[1]
