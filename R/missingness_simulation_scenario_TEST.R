@@ -124,9 +124,10 @@ sample_FULL_dataset         <- simulation_results[[12]]
 sample_handled_MNAR_dataset <- simulation_results[[13]]
 sample_handled_MCAR_dataset <- simulation_results[[14]]
 
-print(TRUE_coefs)
-
 message("\nFull data (before missingness)")
+
+print(determine_subgroup_var_Y(32, 0.305, 0.5, 0.1, 0.2))
+
 print(sapply(sample_FULL_dataset[, c("Y", "X", "Z2", "Z26")], mean))
 print(sapply(sample_FULL_dataset[, c("Y", "X", "Z2", "Z26")], median))
 print(sapply(sample_FULL_dataset[, c("Y", "X", "Z2", "Z26")], var))
@@ -144,12 +145,16 @@ print(sapply(sample_handled_MCAR_dataset[, c("Y", "X", "Z2", "Z26")], var))
 message("\nSample sizes")
 print(sample_size_table)
 
-message("\nR2X, R2Y")
+message("\nCoefficients")
 
+print(TRUE_coefs)
+
+message("\nR2Y")
 print(target_r_sq_Y)
 check <- lm("Y ~ .", data = sample_FULL_dataset)
 print(summary(check)$r.squared)
 
+message("\nR2X")
 print(target_r_sq_X)
 sample_FULL_dataset <- subset(sample_FULL_dataset, select=-c(Y))
 check <- lm("X ~ .", data = sample_FULL_dataset)

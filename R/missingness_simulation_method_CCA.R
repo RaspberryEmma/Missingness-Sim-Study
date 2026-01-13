@@ -125,6 +125,7 @@ determine_subgroup_var_Y <- function(num_total_conf = NULL,
   
   value <- LHS + MID + RHS
   
+  
   return (value)
 }
 
@@ -138,8 +139,7 @@ determine_subgroup_var_error_Y <- function(var_Y          = NULL,
   RHS   <- var_Y / target_r_sq_Y
   value <- sqrt(LHS * RHS)
   
-  # double here for bias induction
-  # value <- 2 * value
+  value <- 44.2
   
   return (value)
 }
@@ -155,7 +155,7 @@ beta_X_formula <- function(num_total_conf = NULL,
   
   value <- sqrt(numerator / denominator)
   
-  stop("fix beta_x formula!")
+  value <- 0.305
   
   return (value)
 }
@@ -169,9 +169,7 @@ beta_X_subgroups_formula <- function(beta_X = NULL) {
   beta_X_3 <- beta_X     # high X, low Y
   beta_X_4 <- beta_X     # high X, high Y
   
-  #beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
-  
-  stop("fix beta_x formula!")
+  beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
   
   return (beta_Xs)
 }
@@ -185,12 +183,7 @@ beta_Y_subgroups_formula <- function(beta_X = NULL) {
   beta_Y_3 <- beta_X / 4 # high X, low Y
   beta_Y_4 <- beta_X     # high X, high Y
   
-  #beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
-  
-  # double size for bias induction
-  # beta_Ys <- 2 * beta_Ys
-  
-  stop("fix beta_x formula!")
+  beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
   
   return (beta_Ys)
 }
