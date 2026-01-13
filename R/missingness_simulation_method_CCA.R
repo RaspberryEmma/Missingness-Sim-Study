@@ -139,7 +139,7 @@ determine_subgroup_var_error_Y <- function(var_Y          = NULL,
   value <- sqrt(LHS * RHS)
   
   # double here for bias induction
-  value <- 2 * value
+  # value <- 2 * value
   
   return (value)
 }
@@ -155,6 +155,8 @@ beta_X_formula <- function(num_total_conf = NULL,
   
   value <- sqrt(numerator / denominator)
   
+  stop("fix beta_x formula!")
+  
   return (value)
 }
 
@@ -162,12 +164,14 @@ beta_X_formula <- function(num_total_conf = NULL,
 # The value for the beta coefficients used for generating X
 # 4 different values corresponding to the 4 subgroups
 beta_X_subgroups_formula <- function(beta_X = NULL) {
-  beta_X_1 <- beta_X     # HH
-  beta_X_2 <- beta_X     # HL
-  beta_X_3 <- beta_X / 4 # LH
-  beta_X_4 <- beta_X / 4 # LL
+  beta_X_1 <- beta_X / 4 # low X, low Y
+  beta_X_2 <- beta_X / 4 # low X, high Y
+  beta_X_3 <- beta_X     # high X, low Y
+  beta_X_4 <- beta_X     # high X, high Y
   
-  beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
+  #beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
+  
+  stop("fix beta_x formula!")
   
   return (beta_Xs)
 }
@@ -176,15 +180,17 @@ beta_X_subgroups_formula <- function(beta_X = NULL) {
 # The value for the beta coefficients used for generating Y
 # 4 different values corresponding to the 4 subgroups
 beta_Y_subgroups_formula <- function(beta_X = NULL) {
-  beta_Y_1 <- beta_X     # HH
-  beta_Y_2 <- beta_X / 4 # HL
-  beta_Y_3 <- beta_X     # LH
-  beta_Y_4 <- beta_X / 4 # LL
+  beta_Y_1 <- beta_X / 4 # low X, low Y
+  beta_Y_2 <- beta_X     # low X, high Y
+  beta_Y_3 <- beta_X / 4 # high X, low Y
+  beta_Y_4 <- beta_X     # high X, high Y
   
-  beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
+  #beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
   
   # double size for bias induction
-  beta_Ys <- 2 * beta_Ys
+  # beta_Ys <- 2 * beta_Ys
+  
+  stop("fix beta_x formula!")
   
   return (beta_Ys)
 }
@@ -299,16 +305,16 @@ generate_dataset <- function(n_obs      = NULL,
   Z32 <- (alpha * prior_U) + (beta * rnorm(n = n_obs, mean = 0, sd = 1))
   
   # generate exposure X
-  X <- (beta_Xs[1] * (Z1  + Z2  + Z3  + Z4  + Z5  + Z6  + Z7  + Z8))  +
-    (beta_Xs[2] * (Z9  + Z10 + Z11 + Z12 + Z13 + Z14 + Z15 + Z16)) +
-    (beta_Xs[3] * (Z17 + Z18 + Z19 + Z20 + Z21 + Z22 + Z23 + Z24)) +
-    (beta_Xs[4] * (Z25 + Z26 + Z27 + Z28 + Z29 + Z30 + Z31 + Z32))
+  X <- (beta_Xs[1] * (Z1  + Z2  + Z3  + Z4  + Z5  + Z6  + Z7  + Z8))  + # low X, low Y
+    (beta_Xs[2] * (Z9  + Z10 + Z11 + Z12 + Z13 + Z14 + Z15 + Z16)) +    # low X, high Y
+    (beta_Xs[3] * (Z17 + Z18 + Z19 + Z20 + Z21 + Z22 + Z23 + Z24)) +    # high X, low Y
+    (beta_Xs[4] * (Z25 + Z26 + Z27 + Z28 + Z29 + Z30 + Z31 + Z32))      # high X, high Y
   
   # generate outcome Y
-  Y <- (beta_Ys[1] * (Z1  + Z2  + Z3  + Z4  + Z5  + Z6  + Z7  + Z8))  +
-    (beta_Ys[2] * (Z9  + Z10 + Z11 + Z12 + Z13 + Z14 + Z15 + Z16)) +
-    (beta_Ys[3] * (Z17 + Z18 + Z19 + Z20 + Z21 + Z22 + Z23 + Z24)) +
-    (beta_Ys[4] * (Z25 + Z26 + Z27 + Z28 + Z29 + Z30 + Z31 + Z32))
+  Y <- (beta_Ys[1] * (Z1  + Z2  + Z3  + Z4  + Z5  + Z6  + Z7  + Z8))  + # low X, low Y
+    (beta_Ys[2] * (Z9  + Z10 + Z11 + Z12 + Z13 + Z14 + Z15 + Z16)) +    # low X, high Y
+    (beta_Ys[3] * (Z17 + Z18 + Z19 + Z20 + Z21 + Z22 + Z23 + Z24)) +    # high X, low Y
+    (beta_Ys[4] * (Z25 + Z26 + Z27 + Z28 + Z29 + Z30 + Z31 + Z32))      # high X, high Y
   
   # add error term to X if X is not binary
   if (!binary_X) {
@@ -400,7 +406,7 @@ generate_dataset <- function(n_obs      = NULL,
 
 apply_MCAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
   # MCAR probability of censorship does not depend on data value
-  psel <- 0.80
+  psel <- 0.25
   
   for (var in vars_to_censor) {
     # MCAR selection vector
@@ -1060,15 +1066,15 @@ run_CCA_simulation <- function(n_scenario = NULL,
                          causal,
                          determine_subgroup_var_error_Y(var_Y = var_Y, target_r_sq_Y  = target_r_sq_Y))
   
-  names(TRUE_coefs) <- c("Z on X (LL)",
-                         "Z on X (LH)",
-                         "Z on X (HL)",
-                         "Z on X (HH)",
+  names(TRUE_coefs) <- c("Z on X (Subgroup Low X, Low Y)",
+                         "Z on X (Subgroup Low X, High Y)",
+                         "Z on X (Subgroup High X, Low Y)",
+                         "Z on X (Subgroup High X, High Y)",
                          
-                         "Z on Y (LL)",
-                         "Z on Y (LH)",
-                         "Z on Y (HL)",
-                         "Z on Y (HH)",
+                         "Z on Y (Subgroup Low X, Low Y)",
+                         "Z on Y (Subgroup Low X, High Y)",
+                         "Z on Y (Subgroup High X, Low Y)",
+                         "Z on Y (Subgroup High X, High Y)",
                          
                          "Causal effect X on Y",
                          "Var in error for Y")
@@ -1086,7 +1092,12 @@ run_CCA_simulation <- function(n_scenario = NULL,
                MNAR_results,
                MCAR_results,
                
-               sample_size_table))
+               sample_size_table,
+               
+               FULL_dataset,
+               handled_MNAR_dataset,
+               handled_MCAR_dataset
+  ))
 }
 
 
