@@ -398,7 +398,7 @@ generate_dataset <- function(n_obs      = NULL,
 
 apply_MCAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
   # MCAR probability of censorship does not depend on data value
-  psel <- 0.80
+  psel <- 0.25
   
   for (var in vars_to_censor) {
     # MCAR selection vector

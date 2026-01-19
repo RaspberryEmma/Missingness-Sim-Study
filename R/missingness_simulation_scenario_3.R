@@ -8,7 +8,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 18/12/2025
+# Most Recent Edit: 19/01/2026
 # ****************************************
 
 
@@ -42,8 +42,8 @@ if (Sys.getenv("RSTUDIO") == "1") {
 
 n_scenario   <- 3
 
-n_obs             <- 100000 # small for testing!
-n_rep             <- 1      # small for testing!
+n_obs             <- 10000
+n_rep             <- 2000
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
 target_r_sq_X     <- 0.8
@@ -276,6 +276,7 @@ write.csv(final_FULL_results,   paste("../data/", id_string, "_FULL_results.csv"
 write.csv(final_MNAR_results,   paste("../data/", id_string, "_MNAR_results.csv", sep=''))
 write.csv(final_MCAR_results,   paste("../data/", id_string, "_MCAR_results.csv", sep=''))
 
-write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.csv", sep=''))
-
-
+write.csv(sample_size_table,           paste("../data/", id_string, "_sample_size_table.csv", sep=''))
+write.csv(sample_FULL_dataset,         paste("../data/", id_string, "_sample_FULL_dataset.csv", sep=''))
+write.csv(sample_handled_MNAR_dataset, paste("../data/", id_string, "_sample_handled_MNAR_dataset.csv", sep=''))
+write.csv(sample_handled_MCAR_dataset, paste("../data/", id_string, "_sample_handled_MCAR_dataset.csv", sep=''))

@@ -27,7 +27,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dplyr", "glmnet", "mice", "speedglm", "tidyr")
+using("dplyr", "glmnet", "mice", "naniar", "speedglm", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
@@ -41,8 +41,8 @@ if (Sys.getenv("RSTUDIO") == "1") {
 
 n_scenario   <- "TEST"
 
-n_obs             <- 100000 # small for testing!
-n_rep             <- 1      # small for testing!
+n_obs             <- 10000 # small for testing!
+n_rep             <- 10    # small for testing!
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
 target_r_sq_X     <- 0.8
@@ -82,28 +82,29 @@ set.seed(2025)
 
 # ------ Run simulation procedure ------
 
-# CCA
-source("missingness_simulation_method_CCA.R")
-simulation_results <- run_CCA_simulation(n_scenario = n_scenario,
-                                         n_obs      = n_obs,
-                                         n_rep      = n_rep,
+# stacked MI
+source("missingness_simulation_method_stacked_MI.R")
+simulation_results <- run_stacked_MI_simulation(n_scenario = n_scenario,
+                                                n_obs      = n_obs,
+                                                n_rep      = n_rep,
 
-                                         Z_correlation     = Z_correlation,
-                                         Z_subgroups       = Z_subgroups,
-                                         target_r_sq_X     = target_r_sq_X,
-                                         target_r_sq_Y     = target_r_sq_Y,
-                                         causal            = causal,
+                                                Z_correlation     = Z_correlation,
+                                                Z_subgroups       = Z_subgroups,
+                                                target_r_sq_X     = target_r_sq_X,
+                                                target_r_sq_Y     = target_r_sq_Y,
+                                                causal            = causal,
 
-                                         binary_X          = binary_X,
-                                         binary_Y          = binary_Y,
-                                         binary_Z          = binary_Z,
+                                                binary_X          = binary_X,
+                                                binary_Y          = binary_Y,
+                                                binary_Z          = binary_Z,
 
-                                         num_total_conf  = num_total_conf,
-                                         num_meas_conf   = num_meas_conf,
-                                         num_unmeas_conf = num_unmeas_conf,
+                                                num_total_conf  = num_total_conf,
+                                                num_meas_conf   = num_meas_conf,
+                                                num_unmeas_conf = num_unmeas_conf,
 
-                                         vars_to_make_unmeasured = vars_to_make_unmeasured,
-                                         vars_to_censor          = vars_to_censor)
+                                                vars_to_make_unmeasured = vars_to_make_unmeasured,
+                                                vars_to_censor          = vars_to_censor)
+
 
 FULL_cov_selection <- simulation_results[[1]]
 MNAR_cov_selection <- simulation_results[[2]]
@@ -159,8 +160,6 @@ print(target_r_sq_X)
 sample_FULL_dataset <- subset(sample_FULL_dataset, select=-c(Y))
 check <- lm("X ~ .", data = sample_FULL_dataset)
 print(summary(check)$r.squared)
-
-stop("heeeelp")
 
 
 # ----- Save results -----
@@ -330,6 +329,54 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 
 
 
+# # naive MI
+# source("missingness_simulation_method_naive_MI.R")
+# simulation_results <- run_naive_MI_simulation(n_scenario = n_scenario,
+#                                                 n_obs      = n_obs,
+#                                                 n_rep      = n_rep,
+# 
+#                                                 Z_correlation     = Z_correlation,
+#                                                 Z_subgroups       = Z_subgroups,
+#                                                 target_r_sq_X     = target_r_sq_X,
+#                                                 target_r_sq_Y     = target_r_sq_Y,
+#                                                 causal            = causal,
+# 
+#                                                 binary_X          = binary_X,
+#                                                 binary_Y          = binary_Y,
+#                                                 binary_Z          = binary_Z,
+# 
+#                                                 num_total_conf  = num_total_conf,
+#                                                 num_meas_conf   = num_meas_conf,
+#                                                 num_unmeas_conf = num_unmeas_conf,
+# 
+#                                                 vars_to_make_unmeasured = vars_to_make_unmeasured,
+#                                                 vars_to_censor          = vars_to_censor)
+
+# # CCA
+# source("missingness_simulation_method_CCA.R")
+# simulation_results <- run_CCA_simulation(n_scenario = n_scenario,
+#                                          n_obs      = n_obs,
+#                                          n_rep      = n_rep,
+# 
+#                                          Z_correlation     = Z_correlation,
+#                                          Z_subgroups       = Z_subgroups,
+#                                          target_r_sq_X     = target_r_sq_X,
+#                                          target_r_sq_Y     = target_r_sq_Y,
+#                                          causal            = causal,
+# 
+#                                          binary_X          = binary_X,
+#                                          binary_Y          = binary_Y,
+#                                          binary_Z          = binary_Z,
+# 
+#                                          num_total_conf  = num_total_conf,
+#                                          num_meas_conf   = num_meas_conf,
+#                                          num_unmeas_conf = num_unmeas_conf,
+# 
+#                                          vars_to_make_unmeasured = vars_to_make_unmeasured,
+#                                          vars_to_censor          = vars_to_censor)
+
+
+
 # # stacked MI
 # source("missingness_simulation_method_stacked_MI.R")
 # simulation_results <- run_stacked_MI_simulation(n_scenario = n_scenario,
@@ -375,29 +422,6 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 # 
 #                                                 vars_to_make_unmeasured = vars_to_make_unmeasured,
 #                                                 vars_to_censor          = vars_to_censor)
-# 
-# # first MI
-# source("missingness_simulation_method_first_MI.R")
-# simulation_results <- run_first_MI_simulation(n_scenario = n_scenario,
-#                                               n_obs      = n_obs,
-#                                               n_rep      = n_rep,
-#                                               
-#                                               Z_correlation     = Z_correlation,
-#                                               Z_subgroups       = Z_subgroups,
-#                                               target_r_sq_X     = target_r_sq_X,
-#                                               target_r_sq_Y     = target_r_sq_Y,
-#                                               causal            = causal,
-#                                               
-#                                               binary_X          = binary_X,
-#                                               binary_Y          = binary_Y,
-#                                               binary_Z          = binary_Z,
-#                                               
-#                                               num_total_conf  = num_total_conf,
-#                                               num_meas_conf   = num_meas_conf,
-#                                               num_unmeas_conf = num_unmeas_conf,
-#                                               
-#                                               vars_to_make_unmeasured = vars_to_make_unmeasured,
-#                                               vars_to_censor          = vars_to_censor)
 #
 # # indicator missingness
 # source("missingness_simulation_method_indicator_encoding.R")
