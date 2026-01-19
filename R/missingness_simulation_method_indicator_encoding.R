@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 18/12/2025
+# Most Recent Edit: 19/01/2026
 # ****************************************
 
 
@@ -138,8 +138,7 @@ determine_subgroup_var_error_Y <- function(var_Y          = NULL,
   RHS   <- var_Y / target_r_sq_Y
   value <- sqrt(LHS * RHS)
   
-  # double here for bias induction
-  value <- 2 * value
+  value <- 44.2
   
   return (value)
 }
@@ -155,6 +154,8 @@ beta_X_formula <- function(num_total_conf = NULL,
   
   value <- sqrt(numerator / denominator)
   
+  value <- 0.305
+  
   return (value)
 }
 
@@ -162,10 +163,10 @@ beta_X_formula <- function(num_total_conf = NULL,
 # The value for the beta coefficients used for generating X
 # 4 different values corresponding to the 4 subgroups
 beta_X_subgroups_formula <- function(beta_X = NULL) {
-  beta_X_1 <- beta_X     # HH
-  beta_X_2 <- beta_X     # HL
-  beta_X_3 <- beta_X / 4 # LH
-  beta_X_4 <- beta_X / 4 # LL
+  beta_X_1 <- beta_X / 4 # low X, low Y
+  beta_X_2 <- beta_X / 4 # low X, high Y
+  beta_X_3 <- beta_X     # high X, low Y
+  beta_X_4 <- beta_X     # high X, high Y
   
   beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
   
@@ -176,15 +177,12 @@ beta_X_subgroups_formula <- function(beta_X = NULL) {
 # The value for the beta coefficients used for generating Y
 # 4 different values corresponding to the 4 subgroups
 beta_Y_subgroups_formula <- function(beta_X = NULL) {
-  beta_Y_1 <- beta_X     # HH
-  beta_Y_2 <- beta_X / 4 # HL
-  beta_Y_3 <- beta_X     # LH
-  beta_Y_4 <- beta_X / 4 # LL
+  beta_Y_1 <- beta_X / 4 # low X, low Y
+  beta_Y_2 <- beta_X     # low X, high Y
+  beta_Y_3 <- beta_X / 4 # high X, low Y
+  beta_Y_4 <- beta_X     # high X, high Y
   
   beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
-  
-  # double size for bias induction
-  beta_Ys <- 2 * beta_Ys
   
   return (beta_Ys)
 }
@@ -1072,15 +1070,15 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
                          causal,
                          determine_subgroup_var_error_Y(var_Y = var_Y, target_r_sq_Y  = target_r_sq_Y))
   
-  names(TRUE_coefs) <- c("Z on X (LL)",
-                         "Z on X (LH)",
-                         "Z on X (HL)",
-                         "Z on X (HH)",
+  names(TRUE_coefs) <- c("Z on X (Subgroup Low X, Low Y)",
+                         "Z on X (Subgroup Low X, High Y)",
+                         "Z on X (Subgroup High X, Low Y)",
+                         "Z on X (Subgroup High X, High Y)",
                          
-                         "Z on Y (LL)",
-                         "Z on Y (LH)",
-                         "Z on Y (HL)",
-                         "Z on Y (HH)",
+                         "Z on Y (Subgroup Low X, Low Y)",
+                         "Z on Y (Subgroup Low X, High Y)",
+                         "Z on Y (Subgroup High X, Low Y)",
+                         "Z on Y (Subgroup High X, High Y)",
                          
                          "Causal effect X on Y",
                          "Var in error for Y")
@@ -1098,7 +1096,12 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
                MNAR_results,
                MCAR_results,
                
-               sample_size_table))
+               sample_size_table,
+               
+               FULL_dataset,
+               handled_MNAR_dataset,
+               handled_MCAR_dataset
+  ))
 }
 
 
