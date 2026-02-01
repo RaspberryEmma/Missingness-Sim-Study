@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 18/12/2025
+# Most Recent Edit: 01/02/2026
 # ****************************************
 
 
@@ -34,6 +34,8 @@ using("dplyr", "glmnet", "mice", "naniar", "speedglm", "tidyr")
 if (Sys.getenv("RSTUDIO") == "1") {
   setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 }
+
+source("common.R")
 
 
 
@@ -83,8 +85,8 @@ set.seed(2025)
 # ------ Run simulation procedure ------
 
 # stacked MI
-source("missingness_simulation_method_stacked_MI.R")
-simulation_results <- run_stacked_MI_simulation(n_scenario = n_scenario,
+source("missingness_simulation_method_naive_MI_NEW.R")
+simulation_results <- run_naive_MI_simulation(n_scenario = n_scenario,
                                                 n_obs      = n_obs,
                                                 n_rep      = n_rep,
 

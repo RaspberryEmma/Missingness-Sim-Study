@@ -8,7 +8,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 19/01/2026
+# Most Recent Edit: 01/02/2026
 # ****************************************
 
 
@@ -36,6 +36,8 @@ if (Sys.getenv("RSTUDIO") == "1") {
   setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 }
 
+source("common.R")
+
 
 
 # ----- Parameters ------
@@ -43,7 +45,7 @@ if (Sys.getenv("RSTUDIO") == "1") {
 n_scenario   <- 3
 
 n_obs             <- 10000
-n_rep             <- 2000
+n_rep             <- 20
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
 target_r_sq_X     <- 0.8
