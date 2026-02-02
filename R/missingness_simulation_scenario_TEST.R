@@ -43,8 +43,8 @@ source("common.R")
 
 n_scenario   <- "TEST"
 
-n_obs             <- 10000 # small for testing!
-n_rep             <- 10    # small for testing!
+n_obs             <- 10000  # small for testing!
+n_rep             <- 2    # small for testing!
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
 target_r_sq_X     <- 0.8
@@ -85,7 +85,7 @@ set.seed(2025)
 # ------ Run simulation procedure ------
 
 # stacked MI
-source("missingness_simulation_method_naive_MI_NEW.R")
+source("missingness_simulation_method_naive_MI.R")
 simulation_results <- run_naive_MI_simulation(n_scenario = n_scenario,
                                                 n_obs      = n_obs,
                                                 n_rep      = n_rep,

@@ -399,9 +399,9 @@ run_stacked_MI_simulation <- function(n_scenario = NULL,
     
     # fully adjusted model
     if (binary_Y) {
-      fully_adjusted_FULL_model <- glm("Y ~ .", data = FULL_dataset,         family = "binomial")
-      fully_adjusted_MNAR_model <- glm("Y ~ .", data = handled_MNAR_dataset, family = "binomial")
-      fully_adjusted_MCAR_model <- glm("Y ~ .", data = handled_MCAR_dataset, family = "binomial")
+      fully_adjusted_FULL_model <- glm("Y ~ .", data = FULL_dataset,         family = "gaussian")
+      fully_adjusted_MNAR_model <- glm("Y ~ .", data = handled_MNAR_dataset, family = "gaussian")
+      fully_adjusted_MCAR_model <- glm("Y ~ .", data = handled_MCAR_dataset, family = "gaussian")
     } else {
       fully_adjusted_FULL_model  <- lm("Y ~ .", data = FULL_dataset)
       fully_adjusted_MNAR_model  <- lm("Y ~ .", data = handled_MNAR_dataset)
@@ -410,9 +410,9 @@ run_stacked_MI_simulation <- function(n_scenario = NULL,
     
     # unadjusted model
     if (binary_Y) {
-      unadjusted_FULL_model <- glm("Y ~ X", data = FULL_dataset,         family = "binomial")
-      unadjusted_MNAR_model <- glm("Y ~ X", data = handled_MNAR_dataset, family = "binomial")
-      unadjusted_MCAR_model <- glm("Y ~ X", data = handled_MCAR_dataset, family = "binomial")
+      unadjusted_FULL_model <- glm("Y ~ X", data = FULL_dataset,         family = "gaussian")
+      unadjusted_MNAR_model <- glm("Y ~ X", data = handled_MNAR_dataset, family = "gaussian")
+      unadjusted_MCAR_model <- glm("Y ~ X", data = handled_MCAR_dataset, family = "gaussian")
     } else {
       unadjusted_FULL_model  <- lm("Y ~ X", data = FULL_dataset)
       unadjusted_MNAR_model  <- lm("Y ~ X", data = handled_MNAR_dataset)
@@ -424,39 +424,39 @@ run_stacked_MI_simulation <- function(n_scenario = NULL,
       
       # full dataset
       
-      cv_lasso_FULL_model <- cv.glmnet(x = data.matrix(X_FULL_dataset), y = data.matrix(Y_FULL_column), family = 'binomial', alpha=1)
+      cv_lasso_FULL_model <- cv.glmnet(x = data.matrix(X_FULL_dataset), y = data.matrix(Y_FULL_column), family = "gaussian", alpha=1)
       lambda              <- cv_lasso_FULL_model$lambda.min
-      lasso_FULL_model    <- glmnet(x = data.matrix(X_FULL_dataset), y = data.matrix(Y_FULL_column), family = 'binomial', alpha=1, lambda=lambda)
+      lasso_FULL_model    <- glmnet(x = data.matrix(X_FULL_dataset), y = data.matrix(Y_FULL_column), family = "gaussian", alpha=1, lambda=lambda)
       
       lasso_FULL_coefs          <- as.vector(lasso_FULL_model$beta)
       names(lasso_FULL_coefs)   <- rownames(lasso_FULL_model$beta)
       lasso_FULL_vars_selected  <- union(c('X'), names(lasso_FULL_coefs[lasso_FULL_coefs != 0.0])) # always select X
       lasso_FULL_vars_selected  <- lasso_FULL_vars_selected[lasso_FULL_vars_selected != "(Intercept)"] # exclude intercept
-      two_step_lasso_FULL_model <- glm(make_model_formula(vars_selected = lasso_FULL_vars_selected), data = FULL_dataset, family = "binomial")
+      two_step_lasso_FULL_model <- glm(make_model_formula(vars_selected = lasso_FULL_vars_selected), data = FULL_dataset, family = "gaussian")
       
       # MNAR data
       
-      cv_lasso_MNAR_model <- cv.glmnet(x = data.matrix(X_handled_MNAR_dataset), y = data.matrix(Y_handled_MNAR_column), family = 'binomial', alpha=1)
+      cv_lasso_MNAR_model <- cv.glmnet(x = data.matrix(X_handled_MNAR_dataset), y = data.matrix(Y_handled_MNAR_column), family = "gaussian", alpha=1)
       lambda              <- cv_lasso_MNAR_model$lambda.min
-      lasso_MNAR_model    <- glmnet(x = data.matrix(X_handled_MNAR_dataset), y = data.matrix(Y_handled_MNAR_column), family = 'binomial', alpha=1, lambda=lambda)
+      lasso_MNAR_model    <- glmnet(x = data.matrix(X_handled_MNAR_dataset), y = data.matrix(Y_handled_MNAR_column), family = "gaussian", alpha=1, lambda=lambda)
       
       lasso_MNAR_coefs          <- as.vector(lasso_MNAR_model$beta)
       names(lasso_MNAR_coefs)   <- rownames(lasso_MNAR_model$beta)
       lasso_MNAR_vars_selected  <- union(c('X'), names(lasso_MNAR_coefs[lasso_MNAR_coefs != 0.0])) # always select X
       lasso_MNAR_vars_selected  <- lasso_MNAR_vars_selected[lasso_MNAR_vars_selected != "(Intercept)"] # exclude intercept
-      two_step_lasso_MNAR_model <- glm(make_model_formula(vars_selected = lasso_MNAR_vars_selected), data = handled_MNAR_dataset, family = "binomial")
+      two_step_lasso_MNAR_model <- glm(make_model_formula(vars_selected = lasso_MNAR_vars_selected), data = handled_MNAR_dataset, family = "gaussian")
       
       # MCAR data
       
-      cv_lasso_MCAR_model <- cv.glmnet(x = data.matrix(X_handled_MCAR_dataset), y = data.matrix(Y_handled_MCAR_column), family = 'binomial', alpha=1)
+      cv_lasso_MCAR_model <- cv.glmnet(x = data.matrix(X_handled_MCAR_dataset), y = data.matrix(Y_handled_MCAR_column), family = "gaussian", alpha=1)
       lambda              <- cv_lasso_MCAR_model$lambda.min
-      lasso_MCAR_model    <- glmnet(x = data.matrix(X_handled_MCAR_dataset), y = data.matrix(Y_handled_MCAR_column), family = 'binomial', alpha=1, lambda=lambda)
+      lasso_MCAR_model    <- glmnet(x = data.matrix(X_handled_MCAR_dataset), y = data.matrix(Y_handled_MCAR_column), family = "gaussian", alpha=1, lambda=lambda)
       
       lasso_MCAR_coefs          <- as.vector(lasso_MCAR_model$beta)
       names(lasso_MCAR_coefs)   <- rownames(lasso_MCAR_model$beta)
       lasso_MCAR_vars_selected  <- union(c('X'), names(lasso_MCAR_coefs[lasso_MCAR_coefs != 0.0])) # always select X
       lasso_MCAR_vars_selected  <- lasso_MCAR_vars_selected[lasso_MCAR_vars_selected != "(Intercept)"] # exclude intercept
-      two_step_lasso_MCAR_model <- glm(make_model_formula(vars_selected = lasso_MCAR_vars_selected), data = handled_MCAR_dataset, family = "binomial")
+      two_step_lasso_MCAR_model <- glm(make_model_formula(vars_selected = lasso_MCAR_vars_selected), data = handled_MCAR_dataset, family = "gaussian")
       
     } else {
       
@@ -502,39 +502,39 @@ run_stacked_MI_simulation <- function(n_scenario = NULL,
       
       # full dataset
       
-      cv_lasso_X_FULL_model <- cv.glmnet(x = data.matrix(Z_FULL_dataset), y = data.matrix(X_FULL_column), family = 'binomial', alpha=1)
+      cv_lasso_X_FULL_model <- cv.glmnet(x = data.matrix(Z_FULL_dataset), y = data.matrix(X_FULL_column), family = "gaussian", alpha=1)
       lambda                <- cv_lasso_X_FULL_model$lambda.min
-      lasso_X_FULL_model    <- glmnet(x = data.matrix(Z_FULL_dataset), y = data.matrix(X_FULL_column), family = 'binomial', alpha=1, lambda=lambda)
+      lasso_X_FULL_model    <- glmnet(x = data.matrix(Z_FULL_dataset), y = data.matrix(X_FULL_column), family = "gaussian", alpha=1, lambda=lambda)
       
       lasso_X_FULL_coefs          <- as.vector(lasso_X_FULL_model$beta)
       names(lasso_X_FULL_coefs)   <- rownames(lasso_X_FULL_model$beta)
       lasso_X_FULL_vars_selected  <- union(c('X'), names(lasso_X_FULL_coefs[lasso_X_FULL_coefs != 0.0])) # always select X
       lasso_X_FULL_vars_selected  <- lasso_X_FULL_vars_selected[lasso_X_FULL_vars_selected != "(Intercept)"] # exclude intercept
-      two_step_lasso_X_FULL_model <- glm(make_model_formula(vars_selected = lasso_X_FULL_vars_selected), data = FULL_dataset, family = "binomial")
+      two_step_lasso_X_FULL_model <- glm(make_model_formula(vars_selected = lasso_X_FULL_vars_selected), data = FULL_dataset, family = "gaussian")
       
       # MNAR data
       
-      cv_lasso_X_MNAR_model <- cv.glmnet(x = data.matrix(Z_handled_MNAR_dataset), y = data.matrix(X_handled_MNAR_column), family = 'binomial', alpha=1)
+      cv_lasso_X_MNAR_model <- cv.glmnet(x = data.matrix(Z_handled_MNAR_dataset), y = data.matrix(X_handled_MNAR_column), family = "gaussian", alpha=1)
       lambda                <- cv_lasso_X_MNAR_model$lambda.min
-      lasso_X_MNAR_model    <- glmnet(x = data.matrix(Z_handled_MNAR_dataset), y = data.matrix(X_handled_MNAR_column), family = 'binomial', alpha=1, lambda=lambda)
+      lasso_X_MNAR_model    <- glmnet(x = data.matrix(Z_handled_MNAR_dataset), y = data.matrix(X_handled_MNAR_column), family = "gaussian", alpha=1, lambda=lambda)
       
       lasso_X_MNAR_coefs          <- as.vector(lasso_X_MNAR_model$beta)
       names(lasso_X_MNAR_coefs)   <- rownames(lasso_X_MNAR_model$beta)
       lasso_X_MNAR_vars_selected  <- union(c('X'), names(lasso_X_MNAR_coefs[lasso_X_MNAR_coefs != 0.0])) # always select X
       lasso_X_MNAR_vars_selected  <- lasso_X_MNAR_vars_selected[lasso_X_MNAR_vars_selected != "(Intercept)"] # exclude intercept
-      two_step_lasso_X_MNAR_model <- glm(make_model_formula(vars_selected = lasso_X_MNAR_vars_selected), data = handled_MNAR_dataset, family = "binomial")
+      two_step_lasso_X_MNAR_model <- glm(make_model_formula(vars_selected = lasso_X_MNAR_vars_selected), data = handled_MNAR_dataset, family = "gaussian")
       
       # MCAR data
       
-      cv_lasso_X_MCAR_model <- cv.glmnet(x = data.matrix(Z_handled_MCAR_dataset), y = data.matrix(X_handled_MCAR_column), family = 'binomial', alpha=1)
+      cv_lasso_X_MCAR_model <- cv.glmnet(x = data.matrix(Z_handled_MCAR_dataset), y = data.matrix(X_handled_MCAR_column), family = "gaussian", alpha=1)
       lambda                <- cv_lasso_X_MCAR_model$lambda.min
-      lasso_X_MCAR_model    <- glmnet(x = data.matrix(Z_handled_MCAR_dataset), y = data.matrix(X_handled_MCAR_column), family = 'binomial', alpha=1, lambda=lambda)
+      lasso_X_MCAR_model    <- glmnet(x = data.matrix(Z_handled_MCAR_dataset), y = data.matrix(X_handled_MCAR_column), family = "gaussian", alpha=1, lambda=lambda)
       
       lasso_X_MCAR_coefs          <- as.vector(lasso_X_MCAR_model$beta)
       names(lasso_X_MCAR_coefs)   <- rownames(lasso_X_MCAR_model$beta)
       lasso_X_MCAR_vars_selected  <- union(c('X'), names(lasso_X_MCAR_coefs[lasso_X_MCAR_coefs != 0.0])) # always select X
       lasso_X_MCAR_vars_selected  <- lasso_X_MCAR_vars_selected[lasso_X_MCAR_vars_selected != "(Intercept)"] # exclude intercept
-      two_step_lasso_X_MCAR_model <- glm(make_model_formula(vars_selected = lasso_X_MCAR_vars_selected), data = handled_MCAR_dataset, family = "binomial")
+      two_step_lasso_X_MCAR_model <- glm(make_model_formula(vars_selected = lasso_X_MCAR_vars_selected), data = handled_MCAR_dataset, family = "gaussian")
       
     } else {
       
@@ -580,15 +580,15 @@ run_stacked_MI_simulation <- function(n_scenario = NULL,
       
       # full dataset
       lasso_union_FULL_vars_selected  <- union(lasso_FULL_vars_selected, lasso_X_FULL_vars_selected)
-      two_step_lasso_union_FULL_model <- glm(make_model_formula(vars_selected = lasso_union_FULL_vars_selected), data = FULL_dataset, family = "binomial")
+      two_step_lasso_union_FULL_model <- glm(make_model_formula(vars_selected = lasso_union_FULL_vars_selected), data = FULL_dataset, family = "gaussian")
       
       # MNAR
       lasso_union_MNAR_vars_selected  <- union(lasso_MNAR_vars_selected, lasso_X_MNAR_vars_selected)
-      two_step_lasso_union_MNAR_model <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = handled_MNAR_dataset, family = "binomial")
+      two_step_lasso_union_MNAR_model <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = handled_MNAR_dataset, family = "gaussian")
       
       # MCAR
       lasso_union_MCAR_vars_selected  <- union(lasso_MCAR_vars_selected, lasso_X_MCAR_vars_selected)
-      two_step_lasso_union_MCAR_model <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = handled_MCAR_dataset, family = "binomial")
+      two_step_lasso_union_MCAR_model <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = handled_MCAR_dataset, family = "gaussian")
       
     } else {
       

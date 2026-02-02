@@ -246,6 +246,6 @@ apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
 }
 
 
-apply_MAR_missingness(data = NULL, vars_to_censor = NULL) {
+apply_MAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
   return (NULL)
 }
