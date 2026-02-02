@@ -981,7 +981,17 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
                                                              two_step_LASSO_union_MCAR_model_4$coefficients['X'],
                                                              two_step_LASSO_union_MCAR_model_5$coefficients['X'])
     
-    # record causal effect estimates
+    # ----- Record covariate selection -----
+    
+    MNAR_cov_selection["two_step_lasso", , repetition]       <- vars_selected_string_to_binary(vars_selected = lasso_MNAR_vars_selected_more_than_half,       var_names = var_names_except_Y_with_intercept)
+    MNAR_cov_selection["two_step_lasso_X", , repetition]     <- vars_selected_string_to_binary(vars_selected = lasso_X_MNAR_vars_selected_more_than_half,     var_names = var_names_except_Y_with_intercept)
+    MNAR_cov_selection["two_step_lasso_union", , repetition] <- vars_selected_string_to_binary(vars_selected = lasso_union_MNAR_vars_selected_more_than_half, var_names = var_names_except_Y_with_intercept)
+    
+    MCAR_cov_selection["two_step_lasso", , repetition]       <- vars_selected_string_to_binary(vars_selected = lasso_MCAR_vars_selected_more_than_half,       var_names = var_names_except_Y_with_intercept)
+    MCAR_cov_selection["two_step_lasso_X", , repetition]     <- vars_selected_string_to_binary(vars_selected = lasso_X_MCAR_vars_selected_more_than_half,     var_names = var_names_except_Y_with_intercept)
+    MCAR_cov_selection["two_step_lasso_union", , repetition] <- vars_selected_string_to_binary(vars_selected = lasso_union_MCAR_vars_selected_more_than_half, var_names = var_names_except_Y_with_intercept)
+    
+    # ----- Record results -----
     
     MNAR_results["two_step_lasso", "causal_true_value", repetition]      <- causal
     MNAR_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_LASSO_MNAR_causal_effect_estimate)
@@ -989,8 +999,8 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     MNAR_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_MNAR_causal_effect_estimate) - causal)/causal)
     MNAR_results["two_step_lasso", "causal_coverage", repetition]        <- NaN
     MNAR_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso", "blocked_paths", repetition]          <- NaN
-    MNAR_results["two_step_lasso", "proportion_paths", repetition]       <- NaN
+    MNAR_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_MNAR_vars_selected_more_than_half[lasso_MNAR_vars_selected_more_than_half != 'X'])
+    MNAR_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_MNAR_vars_selected_more_than_half[lasso_MNAR_vars_selected_more_than_half != 'X']) / num_total_conf
     MNAR_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
     MNAR_results["two_step_lasso", "model_SE", repetition]               <- NaN
     
@@ -1000,8 +1010,8 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     MNAR_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_X_MNAR_causal_effect_estimate) - causal)/causal)
     MNAR_results["two_step_lasso_X", "causal_coverage", repetition]        <- NaN
     MNAR_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso_X", "blocked_paths", repetition]          <- NaN
-    MNAR_results["two_step_lasso_X", "proportion_paths", repetition]       <- NaN
+    MNAR_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_MNAR_vars_selected_more_than_half[lasso_X_MNAR_vars_selected_more_than_half != 'X'])
+    MNAR_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_MNAR_vars_selected_more_than_half[lasso_X_MNAR_vars_selected_more_than_half != 'X']) / num_total_conf
     MNAR_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
     MNAR_results["two_step_lasso_X", "model_SE", repetition]               <- NaN
     
@@ -1011,8 +1021,8 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     MNAR_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_union_MNAR_causal_effect_estimate) - causal)/causal)
     MNAR_results["two_step_lasso_union", "causal_coverage", repetition]        <- NaN
     MNAR_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso_union", "blocked_paths", repetition]          <- NaN
-    MNAR_results["two_step_lasso_union", "proportion_paths", repetition]       <- NaN
+    MNAR_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_MNAR_vars_selected_more_than_half[lasso_union_MNAR_vars_selected_more_than_half != 'X'])
+    MNAR_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_MNAR_vars_selected_more_than_half[lasso_union_MNAR_vars_selected_more_than_half != 'X']) / num_total_conf
     MNAR_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
     MNAR_results["two_step_lasso_union", "model_SE", repetition]               <- NaN
     
@@ -1022,8 +1032,8 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     MCAR_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_MCAR_causal_effect_estimate) - causal)/causal)
     MCAR_results["two_step_lasso", "causal_coverage", repetition]        <- NaN
     MCAR_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso", "blocked_paths", repetition]          <- NaN
-    MCAR_results["two_step_lasso", "proportion_paths", repetition]       <- NaN
+    MCAR_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_MCAR_vars_selected_more_than_half[lasso_MCAR_vars_selected_more_than_half != 'X'])
+    MCAR_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_MCAR_vars_selected_more_than_half[lasso_MCAR_vars_selected_more_than_half != 'X']) / num_total_conf
     MCAR_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
     MCAR_results["two_step_lasso", "model_SE", repetition]               <- NaN
     
@@ -1033,8 +1043,8 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     MCAR_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_X_MCAR_causal_effect_estimate) - causal)/causal)
     MCAR_results["two_step_lasso_X", "causal_coverage", repetition]        <- NaN
     MCAR_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso_X", "blocked_paths", repetition]          <- NaN
-    MCAR_results["two_step_lasso_X", "proportion_paths", repetition]       <- NaN
+    MCAR_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_MCAR_vars_selected_more_than_half[lasso_X_MCAR_vars_selected_more_than_half != 'X'])
+    MCAR_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_MCAR_vars_selected_more_than_half[lasso_X_MCAR_vars_selected_more_than_half != 'X']) / num_total_conf
     MCAR_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
     MCAR_results["two_step_lasso_X", "model_SE", repetition]               <- NaN
     
@@ -1044,8 +1054,8 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     MCAR_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_union_MCAR_causal_effect_estimate) - causal)/causal)
     MCAR_results["two_step_lasso_union", "causal_coverage", repetition]        <- NaN
     MCAR_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso_union", "blocked_paths", repetition]          <- NaN
-    MCAR_results["two_step_lasso_union", "proportion_paths", repetition]       <- NaN
+    MCAR_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_MCAR_vars_selected_more_than_half[lasso_union_MCAR_vars_selected_more_than_half != 'X'])
+    MCAR_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_MCAR_vars_selected_more_than_half[lasso_union_MCAR_vars_selected_more_than_half != 'X']) / num_total_conf
     MCAR_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
     MCAR_results["two_step_lasso_union", "model_SE", repetition]               <- NaN
     
