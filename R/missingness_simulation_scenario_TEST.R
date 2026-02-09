@@ -84,7 +84,7 @@ set.seed(2025)
 
 # ------ Run simulation procedure ------
 
-# stacked MI
+
 source("missingness_simulation_method_naive_MI.R")
 simulation_results <- run_naive_MI_simulation(n_scenario = n_scenario,
                                                 n_obs      = n_obs,

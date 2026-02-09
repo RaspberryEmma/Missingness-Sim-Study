@@ -376,6 +376,8 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     MCAR_psel       <- MCAR_data[[2]]
     MCAR_censorship <- MCAR_data[[3]]
     
+    MAR_data <- apply_MAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    
     message("\n\n Missingness Mechanisms")
     print("MNAR p(selection into sample)")
     print(summary(as.factor(MNAR_psel)))

@@ -247,5 +247,22 @@ apply_MNAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
 
 
 apply_MAR_missingness <- function(data = NULL, vars_to_censor = NULL) {
-  return (NULL)
+  # generate sub of all covariates in low, low subgroup (i.e Z_new = sum(Z1, ..., Z8))
+  Z_sum_subgroup_LL <- rowSums(data[, c("Z2", "Z3", "Z4", "Z5", "Z6", "Z7", "Z8")])
+  
+  # find 75th percentile of this sum
+  percentile_75 <- quantile(Z_sum_subgroup_LL, 0.75)
+  psel <- 0.25
+  
+  # select into study population where value of sum is above 75th percentile
+  MAR_selection <- (Z_sum_subgroup_LL >= percentile_75)
+  
+  # Apply censorship to variable for every observation which is NOT selected
+  for (var in vars_to_censor) {
+    data[, var][MAR_selection == 0] <- NA
+  }
+  
+  return (list(data, psel, MAR_selection))
 }
+
+
