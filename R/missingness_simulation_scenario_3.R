@@ -52,10 +52,6 @@ target_r_sq_X     <- 0.8
 target_r_sq_Y     <- 0.2
 causal            <- 0.5
 
-binary_X          <- FALSE
-binary_Y          <- FALSE
-binary_Z          <- FALSE
-
 num_total_conf  <- 32
 num_meas_conf   <- 28
 num_unmeas_conf <- 4
@@ -96,10 +92,6 @@ simulation_results <- run_stacked_MI_simulation(n_scenario = n_scenario,
                                                 target_r_sq_X     = target_r_sq_X,
                                                 target_r_sq_Y     = target_r_sq_Y,
                                                 causal            = causal,
-
-                                                binary_X          = binary_X,
-                                                binary_Y          = binary_Y,
-                                                binary_Z          = binary_Z,
 
                                                 num_total_conf  = num_total_conf,
                                                 num_meas_conf   = num_meas_conf,
@@ -166,9 +158,6 @@ sim_setup <- c(n_obs,
                target_r_sq_X,
                target_r_sq_Y,
                causal,
-               binary_X,
-               binary_Y,
-               binary_Z,
                num_total_conf,
                num_meas_conf,
                num_unmeas_conf,
@@ -181,9 +170,6 @@ names(sim_setup) <- c("n_obs",
                       "target_r_sq_X",
                       "target_r_sq_Y",
                       "causal",
-                      "binary_X",
-                      "binary_Y",
-                      "binary_Z",
                       "num_total_conf",
                       "num_meas_conf",
                       "num_unmeas_conf",

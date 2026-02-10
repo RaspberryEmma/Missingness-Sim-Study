@@ -3,6 +3,7 @@
 #
 # Simulation procedure for confounder-handling
 # with missingness considerations
+# Scenario: TEST, used for development
 #
 # Emma Tarmey
 #
@@ -51,10 +52,6 @@ target_r_sq_X     <- 0.8
 target_r_sq_Y     <- 0.2
 causal            <- 0.5
 
-binary_X          <- FALSE
-binary_Y          <- FALSE
-binary_Z          <- FALSE
-
 num_total_conf  <- 32
 num_meas_conf   <- 28
 num_unmeas_conf <- 4
@@ -84,28 +81,25 @@ set.seed(2025)
 
 # ------ Run simulation procedure ------
 
+# CCA
+source("missingness_simulation_method_CCA.R")
+simulation_results <- run_CCA_simulation(n_scenario = n_scenario,
+                                         n_obs      = n_obs,
+                                         n_rep      = n_rep,
 
-source("missingness_simulation_method_naive_MI.R")
-simulation_results <- run_naive_MI_simulation(n_scenario = n_scenario,
-                                                n_obs      = n_obs,
-                                                n_rep      = n_rep,
+                                         Z_correlation     = Z_correlation,
+                                         Z_subgroups       = Z_subgroups,
+                                         target_r_sq_X     = target_r_sq_X,
+                                         target_r_sq_Y     = target_r_sq_Y,
+                                         causal            = causal,
 
-                                                Z_correlation     = Z_correlation,
-                                                Z_subgroups       = Z_subgroups,
-                                                target_r_sq_X     = target_r_sq_X,
-                                                target_r_sq_Y     = target_r_sq_Y,
-                                                causal            = causal,
+                                         num_total_conf  = num_total_conf,
+                                         num_meas_conf   = num_meas_conf,
+                                         num_unmeas_conf = num_unmeas_conf,
 
-                                                binary_X          = binary_X,
-                                                binary_Y          = binary_Y,
-                                                binary_Z          = binary_Z,
+                                         vars_to_make_unmeasured = vars_to_make_unmeasured,
+                                         vars_to_censor          = vars_to_censor)
 
-                                                num_total_conf  = num_total_conf,
-                                                num_meas_conf   = num_meas_conf,
-                                                num_unmeas_conf = num_unmeas_conf,
-
-                                                vars_to_make_unmeasured = vars_to_make_unmeasured,
-                                                vars_to_censor          = vars_to_censor)
 
 
 FULL_cov_selection <- simulation_results[[1]]
@@ -206,9 +200,6 @@ sim_setup <- c(n_obs,
                target_r_sq_X,
                target_r_sq_Y,
                causal,
-               binary_X,
-               binary_Y,
-               binary_Z,
                num_total_conf,
                num_meas_conf,
                num_unmeas_conf,
@@ -221,9 +212,6 @@ names(sim_setup) <- c("n_obs",
                       "target_r_sq_X",
                       "target_r_sq_Y",
                       "causal",
-                      "binary_X",
-                      "binary_Y",
-                      "binary_Z",
                       "num_total_conf",
                       "num_meas_conf",
                       "num_unmeas_conf",
@@ -326,7 +314,23 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 
 
 
-
+# source("missingness_simulation_method_naive_MI.R")
+# simulation_results <- run_naive_MI_simulation(n_scenario = n_scenario,
+#                                                 n_obs      = n_obs,
+#                                                 n_rep      = n_rep,
+# 
+#                                                 Z_correlation     = Z_correlation,
+#                                                 Z_subgroups       = Z_subgroups,
+#                                                 target_r_sq_X     = target_r_sq_X,
+#                                                 target_r_sq_Y     = target_r_sq_Y,
+#                                                 causal            = causal,
+# 
+#                                                 num_total_conf  = num_total_conf,
+#                                                 num_meas_conf   = num_meas_conf,
+#                                                 num_unmeas_conf = num_unmeas_conf,
+# 
+#                                                 vars_to_make_unmeasured = vars_to_make_unmeasured,
+#                                                 vars_to_censor          = vars_to_censor)
 
 
 
@@ -342,10 +346,6 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 #                                                 target_r_sq_X     = target_r_sq_X,
 #                                                 target_r_sq_Y     = target_r_sq_Y,
 #                                                 causal            = causal,
-# 
-#                                                 binary_X          = binary_X,
-#                                                 binary_Y          = binary_Y,
-#                                                 binary_Z          = binary_Z,
 # 
 #                                                 num_total_conf  = num_total_conf,
 #                                                 num_meas_conf   = num_meas_conf,
@@ -365,10 +365,6 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 #                                          target_r_sq_X     = target_r_sq_X,
 #                                          target_r_sq_Y     = target_r_sq_Y,
 #                                          causal            = causal,
-# 
-#                                          binary_X          = binary_X,
-#                                          binary_Y          = binary_Y,
-#                                          binary_Z          = binary_Z,
 # 
 #                                          num_total_conf  = num_total_conf,
 #                                          num_meas_conf   = num_meas_conf,
@@ -391,10 +387,6 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 #                                                 target_r_sq_Y     = target_r_sq_Y,
 #                                                 causal            = causal,
 # 
-#                                                 binary_X          = binary_X,
-#                                                 binary_Y          = binary_Y,
-#                                                 binary_Z          = binary_Z,
-# 
 #                                                 num_total_conf  = num_total_conf,
 #                                                 num_meas_conf   = num_meas_conf,
 #                                                 num_unmeas_conf = num_unmeas_conf,
@@ -413,10 +405,6 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 #                                                 target_r_sq_X     = target_r_sq_X,
 #                                                 target_r_sq_Y     = target_r_sq_Y,
 #                                                 causal            = causal,
-# 
-#                                                 binary_X          = binary_X,
-#                                                 binary_Y          = binary_Y,
-#                                                 binary_Z          = binary_Z,
 # 
 #                                                 num_total_conf  = num_total_conf,
 #                                                 num_meas_conf   = num_meas_conf,
@@ -437,10 +425,6 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 #                                                         target_r_sq_Y     = target_r_sq_Y,
 #                                                         causal            = causal,
 # 
-#                                                         binary_X          = binary_X,
-#                                                         binary_Y          = binary_Y,
-#                                                         binary_Z          = binary_Z,
-# 
 #                                                         num_total_conf  = num_total_conf,
 #                                                         num_meas_conf   = num_meas_conf,
 #                                                         num_unmeas_conf = num_unmeas_conf,
@@ -460,13 +444,10 @@ write.csv(sample_size_table,   paste("../data/", id_string, "_sample_size_table.
 #                                                  target_r_sq_Y     = target_r_sq_Y,
 #                                                  causal            = causal,
 # 
-#                                                  binary_X          = binary_X,
-#                                                  binary_Y          = binary_Y,
-#                                                  binary_Z          = binary_Z,
-# 
 #                                                  num_total_conf  = num_total_conf,
 #                                                  num_meas_conf   = num_meas_conf,
 #                                                  num_unmeas_conf = num_unmeas_conf,
 # 
 #                                                  vars_to_make_unmeasured = vars_to_make_unmeasured,
 #                                                  vars_to_censor          = vars_to_censor)
+
