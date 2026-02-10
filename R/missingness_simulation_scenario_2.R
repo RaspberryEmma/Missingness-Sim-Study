@@ -44,8 +44,8 @@ source("common.R")
 
 n_scenario   <- 2
 
-n_obs             <- 10000
-n_rep             <- 20
+n_obs             <- 1000 # 10000
+n_rep             <- 3 # 20
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
 target_r_sq_X     <- 0.8

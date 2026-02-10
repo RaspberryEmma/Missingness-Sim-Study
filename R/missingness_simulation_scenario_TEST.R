@@ -79,7 +79,75 @@ set.seed(2025)
 
 
 
-# ------ Run simulation procedure ------
+# ----- Testing -----
+
+var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''))
+var_names_except_Y                <- var_names[ !var_names == 'Y']
+var_names_except_Y_with_intercept <- c("(Intercept)", var_names_except_Y)
+
+FULL_dataset <- generate_dataset(n_obs      = n_obs,
+                                 n_rep      = n_rep,
+                                 
+                                 Z_correlation     = Z_correlation,
+                                 Z_subgroups       = Z_subgroups,
+                                 target_r_sq_X     = target_r_sq_X,
+                                 target_r_sq_Y     = target_r_sq_Y,
+                                 causal            = causal,
+                                 
+                                 num_total_conf  = num_total_conf,
+                                 num_meas_conf   = num_meas_conf,
+                                 num_unmeas_conf = num_unmeas_conf,
+                                 
+                                 vars_to_make_unmeasured = vars_to_make_unmeasured,
+                                 vars_to_censor          = vars_to_censor,
+                                 var_names               = var_names)
+
+missingness_mechanism <- "MAR"
+
+if (missingness_mechanism == "MNAR") {
+  missingness_data <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+} else if (missingness_mechanism == "MCAR") {
+  missingness_data <- apply_MCAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+} else if (missingness_mechanism == "MAR") {
+  missingness_data <- apply_MAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+} else {
+  stop("TODO: full data here, structure needs slight work")
+}
+
+MNAR_data <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+MCAR_data <- apply_MCAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+MAR_data  <- apply_MAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+
+MNAR_dataset    <- MNAR_data[[1]]
+MNAR_psel       <- MNAR_data[[2]]
+MNAR_censorship <- MNAR_data[[3]]
+
+MCAR_dataset    <- MCAR_data[[1]]
+MCAR_psel       <- MCAR_data[[2]]
+MCAR_censorship <- MCAR_data[[3]]
+
+MAR_dataset    <- MAR_data[[1]]
+MAR_psel       <- MAR_data[[2]]
+MAR_censorship <- MAR_data[[3]]
+
+message("\n\n Missingness Mechanisms")
+print("MNAR p(selection into sample)")
+print(summary(as.factor(MNAR_psel)))
+
+print("MCAR p(selection into sample)")
+print(summary(as.factor(MCAR_psel)))
+
+print("MAR p(selection into sample)")
+print(summary(as.factor(MAR_psel)))
+
+obj <- lm("Y ~ .", data = MAR_dataset)
+
+View(obj)
+summary(obj)
+
+
+
+# ------ Test simulation procedure ------
 
 # CCA
 source("missingness_simulation_method_CCA.R")

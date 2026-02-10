@@ -138,6 +138,7 @@ determine_subgroup_var_error_Y <- function(var_Y          = NULL,
   RHS   <- var_Y / target_r_sq_Y
   value <- sqrt(LHS * RHS)
   
+  message("TODO: remove MAGIC NUMBER")
   value <- 44.2
   
   return (value)
@@ -154,6 +155,7 @@ beta_X_formula <- function(num_total_conf = NULL,
   
   value <- sqrt(numerator / denominator)
   
+  message("TODO: remove MAGIC NUMBER")
   value <- 0.305
   
   return (value)

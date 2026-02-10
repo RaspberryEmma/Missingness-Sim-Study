@@ -15,15 +15,14 @@
 
 # See: https://www.rdocumentation.org/packages/mice/versions/3.17.0/topics/mice
 apply_naive_MI <- function(data = NULL, num_datasets = NULL, repetitions = NULL, imp_method = NULL) {
-  imp_data <- NULL
   
-  # find all vars containing missingness to be imputed
-  if (binary_Z) {
-    vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
-    for (var in vars_with_missingness) {
-      data[, var] <- as.factor(data[, var])
-    }
-  }
+  # # find all vars containing missingness to be imputed
+  # if (binary_Z) {
+  #   vars_with_missingness <- colnames(data)[ apply(data, 2, anyNA) ]
+  #   for (var in vars_with_missingness) {
+  #     data[, var] <- as.factor(data[, var])
+  #   }
+  # }
   
   capture.output(                      # suppress command line output
     imp <- mice(data,
@@ -163,21 +162,21 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     # apply naive MI
     # imp_method = norm -> MI using Bayesian linear regression
     # see: section "Details" of https://www.rdocumentation.org/packages/mice/versions/3.17.0/topics/mice
-    handled_missingness_dataset <- apply_naive_MI(data         = missingness_dataset,
+    handled_missingness_imputation_object <- apply_naive_MI(data         = missingness_dataset,
                                              num_datasets = 5,
                                              repetitions  = 20,
                                              imp_method   = "norm")
     
-    handled_missingness_list_of_datasets <- list(complete(handled_missingness_dataset, action = 1),
-                                          complete(handled_missingness_dataset, action = 2),
-                                          complete(handled_missingness_dataset, action = 3),
-                                          complete(handled_missingness_dataset, action = 4),
-                                          complete(handled_missingness_dataset, action = 5))
+    handled_missingness_list_of_datasets <- list(complete(handled_missingness_imputation_object, action = 1),
+                                                 complete(handled_missingness_imputation_object, action = 2),
+                                                 complete(handled_missingness_imputation_object, action = 3),
+                                                 complete(handled_missingness_imputation_object, action = 4),
+                                                 complete(handled_missingness_imputation_object, action = 5))
     
     # record sample sizes before and after missingness handling is applied
     # NB: for naive MI, all imputed datasets will have the same sample size
     sample_size_table["missingness", "complete_cases"]             <- dim(missingness_dataset[complete.cases(missingness_dataset), ])[1]
-    sample_size_table["missingness", "sample_size_after_handling"] <- dim(handled_missingness_dataset$data)[1]
+    sample_size_table["missingness", "sample_size_after_handling"] <- dim(handled_missingness_imputation_object$data)[1]
 
     # cut up versions of the data as needed
     X_handled_missingness_list_of_datasets <- lapply(handled_missingness_list_of_datasets, subset, select=-c(Y))
@@ -277,29 +276,15 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
                                                     lasso_missingness_vars_selected_5),
                                               na.rm = TRUE)
     
+    
     lasso_missingness_vars_selected_more_than_half <- names(lasso_missingness_vars_selected_mean[lasso_missingness_vars_selected_mean >= 0.5])
     
-    two_step_LASSO_missingness_model_1 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
-                                       data   = handled_missingness_list_of_datasets[[1]],
-                                       family = "gaussian")
-    two_step_LASSO_missingness_model_2 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
-                                       data   = handled_missingness_list_of_datasets[[2]],
-                                       family = "gaussian")
-    two_step_LASSO_missingness_model_3 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
-                                       data   = handled_missingness_list_of_datasets[[3]],
-                                       family = "gaussian")
-    two_step_LASSO_missingness_model_4 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
-                                       data   = handled_missingness_list_of_datasets[[4]],
-                                       family = "gaussian")
-    two_step_LASSO_missingness_model_5 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
-                                       data   = handled_missingness_list_of_datasets[[5]],
-                                       family = "gaussian")
+    lasso_missingness_formula <- paste0("glm(", make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half), ", family = 'gaussian')")
     
-    two_step_LASSO_missingness_causal_effect_estimate <- mean(two_step_LASSO_missingness_model_1$coefficients['X'],
-                                                       two_step_LASSO_missingness_model_2$coefficients['X'],
-                                                       two_step_LASSO_missingness_model_3$coefficients['X'],
-                                                       two_step_LASSO_missingness_model_4$coefficients['X'],
-                                                       two_step_LASSO_missingness_model_5$coefficients['X'])
+    
+    two_step_LASSO_missingness_models   <- with(handled_missingness_imputation_object,
+                                              eval(parse(text=lasso_missingness_formula)))
+    two_step_LASSO_missingness_estimate <- summary(pool(two_step_LASSO_missingness_models))
     
 
     # MI LASSO_x
@@ -396,28 +381,17 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     
     lasso_X_missingness_vars_selected_more_than_half <- names(lasso_X_missingness_vars_selected_mean[lasso_X_missingness_vars_selected_mean >= 0.5])
     
-    two_step_LASSO_X_missingness_model_1 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
-                                         data   = handled_missingness_list_of_datasets[[1]],
-                                         family = "gaussian")
-    two_step_LASSO_X_missingness_model_2 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
-                                         data   = handled_missingness_list_of_datasets[[2]],
-                                         family = "gaussian")
-    two_step_LASSO_X_missingness_model_3 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
-                                         data   = handled_missingness_list_of_datasets[[3]],
-                                         family = "gaussian")
-    two_step_LASSO_X_missingness_model_4 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
-                                         data   = handled_missingness_list_of_datasets[[4]],
-                                         family = "gaussian")
-    two_step_LASSO_X_missingness_model_5 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
-                                         data   = handled_missingness_list_of_datasets[[5]],
-                                         family = "gaussian")
+    lasso_X_missingness_formula <- paste0("glm(", make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half), ", family = 'gaussian')")
     
-    two_step_LASSO_X_missingness_causal_effect_estimate <- mean(two_step_LASSO_X_missingness_model_1$coefficients['X'],
-                                                         two_step_LASSO_X_missingness_model_2$coefficients['X'],
-                                                         two_step_LASSO_X_missingness_model_3$coefficients['X'],
-                                                         two_step_LASSO_X_missingness_model_4$coefficients['X'],
-                                                         two_step_LASSO_X_missingness_model_5$coefficients['X'])
+    two_step_LASSO_X_missingness_models   <- with(handled_missingness_imputation_object,
+                                                  eval(parse(text=lasso_X_missingness_formula)))
+    two_step_LASSO_X_missingness_estimate <- summary(pool(two_step_LASSO_X_missingness_models))
     
+    print(lasso_X_missingness_vars_selected_mean)
+    print(lasso_X_missingness_vars_selected_more_than_half)
+    print(lasso_X_missingness_formula)
+    print(two_step_LASSO_X_missingness_estimate)
+    stop("here")    
 
     # MI LASSO_UNION
     
@@ -445,27 +419,18 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     
     lasso_union_missingness_vars_selected_more_than_half <- names(lasso_union_missingness_vars_selected_mean[lasso_union_missingness_vars_selected_mean >= 0.5])
     
-    two_step_LASSO_union_missingness_model_1 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
-                                             data   = handled_missingness_list_of_datasets[[1]],
-                                             family = "gaussian")
-    two_step_LASSO_union_missingness_model_2 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
-                                             data   = handled_missingness_list_of_datasets[[2]],
-                                             family = "gaussian")
-    two_step_LASSO_union_missingness_model_3 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
-                                             data   = handled_missingness_list_of_datasets[[3]],
-                                             family = "gaussian")
-    two_step_LASSO_union_missingness_model_4 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
-                                             data   = handled_missingness_list_of_datasets[[4]],
-                                             family = "gaussian")
-    two_step_LASSO_union_missingness_model_5 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
-                                             data   = handled_missingness_list_of_datasets[[5]],
-                                             family = "gaussian")
+    lasso_union_missingness_formula <- paste0("glm(", make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half), ", family = 'gaussian')")
     
-    two_step_LASSO_union_missingness_causal_effect_estimate <- mean(two_step_LASSO_union_missingness_model_1$coefficients['X'],
-                                                             two_step_LASSO_union_missingness_model_2$coefficients['X'],
-                                                             two_step_LASSO_union_missingness_model_3$coefficients['X'],
-                                                             two_step_LASSO_union_missingness_model_4$coefficients['X'],
-                                                             two_step_LASSO_union_missingness_model_5$coefficients['X'])
+    two_step_LASSO_union_missingness_models   <- with(handled_missingness_imputation_object,
+                                                      eval(parse(text=lasso_union_missingness_formula)))
+    two_step_LASSO_union_missingness_estimate <- summary(pool(two_step_LASSO_union_missingness_models))
+    
+    print(two_step_LASSO_union_missingness_estimate)
+    print(colnames(two_step_LASSO_union_missingness_estimate))
+    print(which(two_step_LASSO_missingness_estimate$term == "X")[[1]])
+    
+    print(two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "estimate"])
+    stop("extract from above")
     
     
     # ----- Record covariate selection -----
@@ -477,9 +442,9 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     # ----- Record results -----
     
     missingness_results["two_step_lasso", "causal_true_value", repetition]      <- causal
-    missingness_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_LASSO_missingness_causal_effect_estimate)
-    missingness_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_LASSO_missingness_causal_effect_estimate) - causal)
-    missingness_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_missingness_causal_effect_estimate) - causal)/causal)
+    missingness_results["two_step_lasso", "causal_estimate", repetition]        <- two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "estimate"]
+    missingness_results["two_step_lasso", "causal_bias", repetition]            <- (two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "estimate"] - causal)
+    missingness_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "estimate"] - causal) / causal)
     missingness_results["two_step_lasso", "causal_coverage", repetition]        <- NaN
     missingness_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X'])
@@ -488,9 +453,9 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso", "model_SE", repetition]               <- NaN
     
     missingness_results["two_step_lasso_X", "causal_true_value", repetition]      <- causal
-    missingness_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_LASSO_X_missingness_causal_effect_estimate)
-    missingness_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_LASSO_X_missingness_causal_effect_estimate) - causal)
-    missingness_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_X_missingness_causal_effect_estimate) - causal)/causal)
+    missingness_results["two_step_lasso_X", "causal_estimate", repetition]        <- NaN # unname(two_step_LASSO_X_missingness_causal_effect_estimate)
+    missingness_results["two_step_lasso_X", "causal_bias", repetition]            <- NaN # (unname(two_step_LASSO_X_missingness_causal_effect_estimate) - causal)
+    missingness_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- NaN # ((unname(two_step_LASSO_X_missingness_causal_effect_estimate) - causal)/causal)
     missingness_results["two_step_lasso_X", "causal_coverage", repetition]        <- NaN
     missingness_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_missingness_vars_selected_more_than_half[lasso_X_missingness_vars_selected_more_than_half != 'X'])
@@ -499,9 +464,9 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso_X", "model_SE", repetition]               <- NaN
     
     missingness_results["two_step_lasso_union", "causal_true_value", repetition]      <- causal
-    missingness_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_LASSO_union_missingness_causal_effect_estimate)
-    missingness_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_LASSO_union_missingness_causal_effect_estimate) - causal)
-    missingness_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_union_missingness_causal_effect_estimate) - causal)/causal)
+    missingness_results["two_step_lasso_union", "causal_estimate", repetition]        <- NaN # unname(two_step_LASSO_union_missingness_causal_effect_estimate)
+    missingness_results["two_step_lasso_union", "causal_bias", repetition]            <- NaN # (unname(two_step_LASSO_union_missingness_causal_effect_estimate) - causal)
+    missingness_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- NaN # ((unname(two_step_LASSO_union_missingness_causal_effect_estimate) - causal)/causal)
     missingness_results["two_step_lasso_union", "causal_coverage", repetition]        <- NaN
     missingness_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_missingness_vars_selected_more_than_half[lasso_union_missingness_vars_selected_more_than_half != 'X'])
