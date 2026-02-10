@@ -77,7 +77,8 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
                                       num_unmeas_conf = NULL,
                                       
                                       vars_to_make_unmeasured = NULL,
-                                      vars_to_censor          = NULL) {
+                                      vars_to_censor          = NULL,
+                                      missingness_mechanism   = NULL) {
 
   # ----- Recording results -----
   
@@ -95,39 +96,19 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
   n_var_sel_methods <- length(var_sel_methods)
   n_results         <- length(results_methods)
   
-  FULL_coefs         <- array(data     = NaN,
+  missingness_coefs         <- array(data     = NaN,
                               dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
                               dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  MNAR_coefs         <- array(data     = NaN,
+  missingness_cov_selection <- array(data     = NaN,
                               dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
                               dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  MCAR_coefs         <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
-                              dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  
-  FULL_cov_selection <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
-                              dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  MNAR_cov_selection <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
-                              dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  MCAR_cov_selection <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
-                              dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  
-  FULL_results       <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, n_results, n_rep),
-                              dimnames = list(var_sel_methods, results_methods, 1:n_rep))
-  MNAR_results       <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, n_results, n_rep),
-                              dimnames = list(var_sel_methods, results_methods, 1:n_rep))
-  MCAR_results       <- array(data     = NaN,
+  missingness_results       <- array(data     = NaN,
                               dim      = c(n_var_sel_methods, n_results, n_rep),
                               dimnames = list(var_sel_methods, results_methods, 1:n_rep))
   
   sample_size_table <- array(data     = NaN,
                              dim      = c(3, 2),
-                             dimnames = list(c("None", "MNAR", "MCAR"), c("complete_cases", "sample_size_after_handling")))
+                             dimnames = list(c("None", "missingness", "MCAR"), c("complete_cases", "sample_size_after_handling")))
   
   
   # ----- Simulation procedure ------
@@ -165,700 +146,368 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
                                      vars_to_censor          = vars_to_censor,
                                      var_names               = var_names)
     
-    MNAR_data       <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
-    MNAR_dataset    <- MNAR_data[[1]]
-    MNAR_psel       <- MNAR_data[[2]]
-    MNAR_censorship <- MNAR_data[[3]]
+    if (missingness_mechanism == "MNAR") {
+      missingness_data <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    } else if (missingness_mechanism == "MCAR") {
+      missingness_data <- apply_MCAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    } else if (missingness_mechanism == "MAR") {
+      missingness_data <- apply_MAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    } else {
+      stop("TODO: full data here, structure needs slight work")
+    }
     
-    MCAR_data       <- apply_MCAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
-    MCAR_dataset    <- MCAR_data[[1]]
-    MCAR_psel       <- MCAR_data[[2]]
-    MCAR_censorship <- MCAR_data[[3]]
-    
-    MAR_data <- apply_MAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
-    
-    message("\n\n Missingness Mechanisms")
-    print("MNAR p(selection into sample)")
-    print(summary(as.factor(MNAR_psel)))
-    
-    print("MCAR p(selection into sample)")
-    print(summary(as.factor(MCAR_psel)))
+    missingness_dataset    <- missingness_data[[1]]
+    missingness_psel       <- missingness_data[[2]]
+    missingness_censorship <- missingness_data[[3]]
     
     # apply naive MI
     # imp_method = norm -> MI using Bayesian linear regression
     # see: section "Details" of https://www.rdocumentation.org/packages/mice/versions/3.17.0/topics/mice
-    handled_MNAR_dataset <- apply_naive_MI(data         = MNAR_dataset,
-                                             num_datasets = 5,
-                                             repetitions  = 20,
-                                             imp_method   = "norm")
-    handled_MCAR_dataset <- apply_naive_MI(data         = MCAR_dataset,
+    handled_missingness_dataset <- apply_naive_MI(data         = missingness_dataset,
                                              num_datasets = 5,
                                              repetitions  = 20,
                                              imp_method   = "norm")
     
-    handled_MNAR_list_of_datasets <- list(complete(handled_MNAR_dataset, action = 1),
-                                          complete(handled_MNAR_dataset, action = 2),
-                                          complete(handled_MNAR_dataset, action = 3),
-                                          complete(handled_MNAR_dataset, action = 4),
-                                          complete(handled_MNAR_dataset, action = 5))
-
-    handled_MCAR_list_of_datasets <- list(complete(handled_MCAR_dataset, action = 1),
-                                          complete(handled_MCAR_dataset, action = 2),
-                                          complete(handled_MCAR_dataset, action = 3),
-                                          complete(handled_MCAR_dataset, action = 4),
-                                          complete(handled_MCAR_dataset, action = 5))
+    handled_missingness_list_of_datasets <- list(complete(handled_missingness_dataset, action = 1),
+                                          complete(handled_missingness_dataset, action = 2),
+                                          complete(handled_missingness_dataset, action = 3),
+                                          complete(handled_missingness_dataset, action = 4),
+                                          complete(handled_missingness_dataset, action = 5))
     
     # record sample sizes before and after missingness handling is applied
     # NB: for naive MI, all imputed datasets will have the same sample size
-    sample_size_table["None", "complete_cases"]             <- dim(FULL_dataset)[1]
-    sample_size_table["None", "sample_size_after_handling"] <- dim(FULL_dataset)[1]
-    sample_size_table["MNAR", "complete_cases"]             <- dim(MNAR_dataset[complete.cases(MNAR_dataset), ])[1]
-    sample_size_table["MNAR", "sample_size_after_handling"] <- dim(handled_MNAR_dataset$data)[1]
-    sample_size_table["MCAR", "complete_cases"]             <- dim(MCAR_dataset[complete.cases(MCAR_dataset), ])[1]
-    sample_size_table["MCAR", "sample_size_after_handling"] <- dim(handled_MCAR_dataset$data)[1]
+    sample_size_table["missingness", "complete_cases"]             <- dim(missingness_dataset[complete.cases(missingness_dataset), ])[1]
+    sample_size_table["missingness", "sample_size_after_handling"] <- dim(handled_missingness_dataset$data)[1]
 
     # cut up versions of the data as needed
-    X_handled_MNAR_list_of_datasets <- lapply(handled_MNAR_list_of_datasets, subset, select=-c(Y))
-    Z_handled_MNAR_list_of_datasets <- lapply(handled_MNAR_list_of_datasets, subset, select=-c(Y, X))
-    Y_handled_MNAR_list_of_columns  <- lapply(handled_MNAR_list_of_datasets, subset, select=c(Y))
-    X_handled_MNAR_list_of_columns  <- lapply(handled_MNAR_list_of_datasets, subset, select=c(X))
-    
-    X_handled_MCAR_list_of_datasets <- lapply(handled_MCAR_list_of_datasets, subset, select=-c(Y))
-    Z_handled_MCAR_list_of_datasets <- lapply(handled_MCAR_list_of_datasets, subset, select=-c(Y, X))
-    Y_handled_MCAR_list_of_columns  <- lapply(handled_MCAR_list_of_datasets, subset, select=c(Y))
-    X_handled_MCAR_list_of_columns  <- lapply(handled_MCAR_list_of_datasets, subset, select=c(X))
+    X_handled_missingness_list_of_datasets <- lapply(handled_missingness_list_of_datasets, subset, select=-c(Y))
+    Z_handled_missingness_list_of_datasets <- lapply(handled_missingness_list_of_datasets, subset, select=-c(Y, X))
+    Y_handled_missingness_list_of_columns  <- lapply(handled_missingness_list_of_datasets, subset, select=c(Y))
+    X_handled_missingness_list_of_columns  <- lapply(handled_missingness_list_of_datasets, subset, select=c(X))
     
     
     # MI LASSO
-    cv_lasso_MNAR_model_1 <- cv.glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[1]]),
-                                       y      = data.matrix(Y_handled_MNAR_list_of_columns[[1]]),
+    cv_lasso_missingness_model_1 <- cv.glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[1]]),
+                                       y      = data.matrix(Y_handled_missingness_list_of_columns[[1]]),
                                        family = 'gaussian',
                                        alpha  = 1)
-    cv_lasso_MNAR_model_2 <- cv.glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[2]]),
-                                       y      = data.matrix(Y_handled_MNAR_list_of_columns[[2]]),
+    cv_lasso_missingness_model_2 <- cv.glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[2]]),
+                                       y      = data.matrix(Y_handled_missingness_list_of_columns[[2]]),
                                        family = 'gaussian',
                                        alpha  = 1)
-    cv_lasso_MNAR_model_3 <- cv.glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[3]]),
-                                       y      = data.matrix(Y_handled_MNAR_list_of_columns[[3]]),
+    cv_lasso_missingness_model_3 <- cv.glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[3]]),
+                                       y      = data.matrix(Y_handled_missingness_list_of_columns[[3]]),
                                        family = 'gaussian',
                                        alpha  = 1)
-    cv_lasso_MNAR_model_4 <- cv.glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[4]]),
-                                       y      = data.matrix(Y_handled_MNAR_list_of_columns[[4]]),
+    cv_lasso_missingness_model_4 <- cv.glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[4]]),
+                                       y      = data.matrix(Y_handled_missingness_list_of_columns[[4]]),
                                        family = 'gaussian',
                                        alpha  = 1)
-    cv_lasso_MNAR_model_5 <- cv.glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[5]]),
-                                       y      = data.matrix(Y_handled_MNAR_list_of_columns[[5]]),
+    cv_lasso_missingness_model_5 <- cv.glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[5]]),
+                                       y      = data.matrix(Y_handled_missingness_list_of_columns[[5]]),
                                        family = 'gaussian',
                                        alpha  = 1)
     
-    lambda_1 <- cv_lasso_MNAR_model_1$lambda.min
-    lambda_2 <- cv_lasso_MNAR_model_2$lambda.min
-    lambda_3 <- cv_lasso_MNAR_model_3$lambda.min
-    lambda_4 <- cv_lasso_MNAR_model_4$lambda.min
-    lambda_5 <- cv_lasso_MNAR_model_5$lambda.min
+    lambda_1 <- cv_lasso_missingness_model_1$lambda.min
+    lambda_2 <- cv_lasso_missingness_model_2$lambda.min
+    lambda_3 <- cv_lasso_missingness_model_3$lambda.min
+    lambda_4 <- cv_lasso_missingness_model_4$lambda.min
+    lambda_5 <- cv_lasso_missingness_model_5$lambda.min
     
-    lasso_MNAR_model_1 <- glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[1]]),
-                                  y      = data.matrix(Y_handled_MNAR_list_of_columns[[1]]),
+    lasso_missingness_model_1 <- glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[1]]),
+                                  y      = data.matrix(Y_handled_missingness_list_of_columns[[1]]),
                                   family = 'gaussian',
                                   alpha  = 1,
                                   lambda = lambda_1)
-    lasso_MNAR_model_2 <- glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[2]]),
-                                  y      = data.matrix(Y_handled_MNAR_list_of_columns[[2]]),
+    lasso_missingness_model_2 <- glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[2]]),
+                                  y      = data.matrix(Y_handled_missingness_list_of_columns[[2]]),
                                   family = 'gaussian',
                                   alpha  = 1,
                                   lambda = lambda_2)
-    lasso_MNAR_model_3 <- glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[3]]),
-                                  y      = data.matrix(Y_handled_MNAR_list_of_columns[[3]]),
+    lasso_missingness_model_3 <- glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[3]]),
+                                  y      = data.matrix(Y_handled_missingness_list_of_columns[[3]]),
                                   family = 'gaussian',
                                   alpha  = 1,
                                   lambda = lambda_3)
-    lasso_MNAR_model_4 <- glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[4]]),
-                                  y      = data.matrix(Y_handled_MNAR_list_of_columns[[4]]),
+    lasso_missingness_model_4 <- glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[4]]),
+                                  y      = data.matrix(Y_handled_missingness_list_of_columns[[4]]),
                                   family = 'gaussian',
                                   alpha  = 1,
                                   lambda = lambda_4)
-    lasso_MNAR_model_5 <- glmnet(x      = data.matrix(X_handled_MNAR_list_of_datasets[[5]]),
-                                  y      = data.matrix(Y_handled_MNAR_list_of_columns[[5]]),
+    lasso_missingness_model_5 <- glmnet(x      = data.matrix(X_handled_missingness_list_of_datasets[[5]]),
+                                  y      = data.matrix(Y_handled_missingness_list_of_columns[[5]]),
                                   family = 'gaussian',
                                   alpha  = 1,
                                   lambda = lambda_5)
     
-    lasso_MNAR_coefs_1 <- as.vector(lasso_MNAR_model_1$beta)
-    lasso_MNAR_coefs_2 <- as.vector(lasso_MNAR_model_2$beta)
-    lasso_MNAR_coefs_3 <- as.vector(lasso_MNAR_model_3$beta)
-    lasso_MNAR_coefs_4 <- as.vector(lasso_MNAR_model_4$beta)
-    lasso_MNAR_coefs_5 <- as.vector(lasso_MNAR_model_5$beta)
+    lasso_missingness_coefs_1 <- as.vector(lasso_missingness_model_1$beta)
+    lasso_missingness_coefs_2 <- as.vector(lasso_missingness_model_2$beta)
+    lasso_missingness_coefs_3 <- as.vector(lasso_missingness_model_3$beta)
+    lasso_missingness_coefs_4 <- as.vector(lasso_missingness_model_4$beta)
+    lasso_missingness_coefs_5 <- as.vector(lasso_missingness_model_5$beta)
     
-    names(lasso_MNAR_coefs_1)   <- rownames(lasso_MNAR_model_1$beta)
-    names(lasso_MNAR_coefs_2)   <- rownames(lasso_MNAR_model_2$beta)
-    names(lasso_MNAR_coefs_3)   <- rownames(lasso_MNAR_model_3$beta)
-    names(lasso_MNAR_coefs_4)   <- rownames(lasso_MNAR_model_4$beta)
-    names(lasso_MNAR_coefs_5)   <- rownames(lasso_MNAR_model_5$beta)
+    names(lasso_missingness_coefs_1)   <- rownames(lasso_missingness_model_1$beta)
+    names(lasso_missingness_coefs_2)   <- rownames(lasso_missingness_model_2$beta)
+    names(lasso_missingness_coefs_3)   <- rownames(lasso_missingness_model_3$beta)
+    names(lasso_missingness_coefs_4)   <- rownames(lasso_missingness_model_4$beta)
+    names(lasso_missingness_coefs_5)   <- rownames(lasso_missingness_model_5$beta)
     
-    lasso_MNAR_vars_selected_1  <- union(c('X'), names(lasso_MNAR_coefs_1[lasso_MNAR_coefs_1 != 0.0])) # always select X
-    lasso_MNAR_vars_selected_2  <- union(c('X'), names(lasso_MNAR_coefs_2[lasso_MNAR_coefs_2 != 0.0])) # always select X
-    lasso_MNAR_vars_selected_3  <- union(c('X'), names(lasso_MNAR_coefs_3[lasso_MNAR_coefs_3 != 0.0])) # always select X
-    lasso_MNAR_vars_selected_4  <- union(c('X'), names(lasso_MNAR_coefs_4[lasso_MNAR_coefs_4 != 0.0])) # always select X
-    lasso_MNAR_vars_selected_5  <- union(c('X'), names(lasso_MNAR_coefs_5[lasso_MNAR_coefs_5 != 0.0])) # always select X
+    lasso_missingness_vars_selected_1  <- union(c('X'), names(lasso_missingness_coefs_1[lasso_missingness_coefs_1 != 0.0])) # always select X
+    lasso_missingness_vars_selected_2  <- union(c('X'), names(lasso_missingness_coefs_2[lasso_missingness_coefs_2 != 0.0])) # always select X
+    lasso_missingness_vars_selected_3  <- union(c('X'), names(lasso_missingness_coefs_3[lasso_missingness_coefs_3 != 0.0])) # always select X
+    lasso_missingness_vars_selected_4  <- union(c('X'), names(lasso_missingness_coefs_4[lasso_missingness_coefs_4 != 0.0])) # always select X
+    lasso_missingness_vars_selected_5  <- union(c('X'), names(lasso_missingness_coefs_5[lasso_missingness_coefs_5 != 0.0])) # always select X
     
-    lasso_MNAR_vars_selected_1  <- lasso_MNAR_vars_selected_1[lasso_MNAR_vars_selected_1 != "(Intercept)"] # exclude intercept
-    lasso_MNAR_vars_selected_2  <- lasso_MNAR_vars_selected_2[lasso_MNAR_vars_selected_2 != "(Intercept)"] # exclude intercept
-    lasso_MNAR_vars_selected_3  <- lasso_MNAR_vars_selected_3[lasso_MNAR_vars_selected_3 != "(Intercept)"] # exclude intercept
-    lasso_MNAR_vars_selected_4  <- lasso_MNAR_vars_selected_4[lasso_MNAR_vars_selected_4 != "(Intercept)"] # exclude intercept
-    lasso_MNAR_vars_selected_5  <- lasso_MNAR_vars_selected_5[lasso_MNAR_vars_selected_5 != "(Intercept)"] # exclude intercept
+    lasso_missingness_vars_selected_1  <- lasso_missingness_vars_selected_1[lasso_missingness_vars_selected_1 != "(Intercept)"] # exclude intercept
+    lasso_missingness_vars_selected_2  <- lasso_missingness_vars_selected_2[lasso_missingness_vars_selected_2 != "(Intercept)"] # exclude intercept
+    lasso_missingness_vars_selected_3  <- lasso_missingness_vars_selected_3[lasso_missingness_vars_selected_3 != "(Intercept)"] # exclude intercept
+    lasso_missingness_vars_selected_4  <- lasso_missingness_vars_selected_4[lasso_missingness_vars_selected_4 != "(Intercept)"] # exclude intercept
+    lasso_missingness_vars_selected_5  <- lasso_missingness_vars_selected_5[lasso_missingness_vars_selected_5 != "(Intercept)"] # exclude intercept
     
-    lasso_MNAR_vars_selected_1 <- vars_selected_string_to_binary(vars_selected = lasso_MNAR_vars_selected_1, var_names = var_names_except_Y)
-    lasso_MNAR_vars_selected_2 <- vars_selected_string_to_binary(vars_selected = lasso_MNAR_vars_selected_2, var_names = var_names_except_Y)
-    lasso_MNAR_vars_selected_3 <- vars_selected_string_to_binary(vars_selected = lasso_MNAR_vars_selected_3, var_names = var_names_except_Y)
-    lasso_MNAR_vars_selected_4 <- vars_selected_string_to_binary(vars_selected = lasso_MNAR_vars_selected_4, var_names = var_names_except_Y)
-    lasso_MNAR_vars_selected_5 <- vars_selected_string_to_binary(vars_selected = lasso_MNAR_vars_selected_5, var_names = var_names_except_Y)
+    lasso_missingness_vars_selected_1 <- vars_selected_string_to_binary(vars_selected = lasso_missingness_vars_selected_1, var_names = var_names_except_Y)
+    lasso_missingness_vars_selected_2 <- vars_selected_string_to_binary(vars_selected = lasso_missingness_vars_selected_2, var_names = var_names_except_Y)
+    lasso_missingness_vars_selected_3 <- vars_selected_string_to_binary(vars_selected = lasso_missingness_vars_selected_3, var_names = var_names_except_Y)
+    lasso_missingness_vars_selected_4 <- vars_selected_string_to_binary(vars_selected = lasso_missingness_vars_selected_4, var_names = var_names_except_Y)
+    lasso_missingness_vars_selected_5 <- vars_selected_string_to_binary(vars_selected = lasso_missingness_vars_selected_5, var_names = var_names_except_Y)
     
-    lasso_MNAR_vars_selected_mean <- colMeans(rbind(lasso_MNAR_vars_selected_1,
-                                                    lasso_MNAR_vars_selected_2,
-                                                    lasso_MNAR_vars_selected_3,
-                                                    lasso_MNAR_vars_selected_4,
-                                                    lasso_MNAR_vars_selected_5),
+    lasso_missingness_vars_selected_mean <- colMeans(rbind(lasso_missingness_vars_selected_1,
+                                                    lasso_missingness_vars_selected_2,
+                                                    lasso_missingness_vars_selected_3,
+                                                    lasso_missingness_vars_selected_4,
+                                                    lasso_missingness_vars_selected_5),
                                               na.rm = TRUE)
     
-    lasso_MNAR_vars_selected_more_than_half <- names(lasso_MNAR_vars_selected_mean[lasso_MNAR_vars_selected_mean >= 0.5])
+    lasso_missingness_vars_selected_more_than_half <- names(lasso_missingness_vars_selected_mean[lasso_missingness_vars_selected_mean >= 0.5])
     
-    two_step_LASSO_MNAR_model_1 <- glm(make_model_formula(vars_selected = lasso_MNAR_vars_selected_more_than_half),
-                                       data   = handled_MNAR_list_of_datasets[[1]],
+    two_step_LASSO_missingness_model_1 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
+                                       data   = handled_missingness_list_of_datasets[[1]],
                                        family = "gaussian")
-    two_step_LASSO_MNAR_model_2 <- glm(make_model_formula(vars_selected = lasso_MNAR_vars_selected_more_than_half),
-                                       data   = handled_MNAR_list_of_datasets[[2]],
+    two_step_LASSO_missingness_model_2 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
+                                       data   = handled_missingness_list_of_datasets[[2]],
                                        family = "gaussian")
-    two_step_LASSO_MNAR_model_3 <- glm(make_model_formula(vars_selected = lasso_MNAR_vars_selected_more_than_half),
-                                       data   = handled_MNAR_list_of_datasets[[3]],
+    two_step_LASSO_missingness_model_3 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
+                                       data   = handled_missingness_list_of_datasets[[3]],
                                        family = "gaussian")
-    two_step_LASSO_MNAR_model_4 <- glm(make_model_formula(vars_selected = lasso_MNAR_vars_selected_more_than_half),
-                                       data   = handled_MNAR_list_of_datasets[[4]],
+    two_step_LASSO_missingness_model_4 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
+                                       data   = handled_missingness_list_of_datasets[[4]],
                                        family = "gaussian")
-    two_step_LASSO_MNAR_model_5 <- glm(make_model_formula(vars_selected = lasso_MNAR_vars_selected_more_than_half),
-                                       data   = handled_MNAR_list_of_datasets[[5]],
-                                       family = "gaussian")
-    
-    two_step_LASSO_MNAR_causal_effect_estimate <- mean(two_step_LASSO_MNAR_model_1$coefficients['X'],
-                                                       two_step_LASSO_MNAR_model_2$coefficients['X'],
-                                                       two_step_LASSO_MNAR_model_3$coefficients['X'],
-                                                       two_step_LASSO_MNAR_model_4$coefficients['X'],
-                                                       two_step_LASSO_MNAR_model_5$coefficients['X'])
-    
-    cv_lasso_MCAR_model_1 <- cv.glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[1]]),
-                                       y      = data.matrix(Y_handled_MCAR_list_of_columns[[1]]),
-                                       family = 'gaussian',
-                                       alpha  = 1)
-    cv_lasso_MCAR_model_2 <- cv.glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[2]]),
-                                       y      = data.matrix(Y_handled_MCAR_list_of_columns[[2]]),
-                                       family = 'gaussian',
-                                       alpha  = 1)
-    cv_lasso_MCAR_model_3 <- cv.glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[3]]),
-                                       y      = data.matrix(Y_handled_MCAR_list_of_columns[[3]]),
-                                       family = 'gaussian',
-                                       alpha  = 1)
-    cv_lasso_MCAR_model_4 <- cv.glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[4]]),
-                                       y      = data.matrix(Y_handled_MCAR_list_of_columns[[4]]),
-                                       family = 'gaussian',
-                                       alpha  = 1)
-    cv_lasso_MCAR_model_5 <- cv.glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[5]]),
-                                       y      = data.matrix(Y_handled_MCAR_list_of_columns[[5]]),
-                                       family = 'gaussian',
-                                       alpha  = 1)
-    
-    lambda_1 <- cv_lasso_MCAR_model_1$lambda.min
-    lambda_2 <- cv_lasso_MCAR_model_2$lambda.min
-    lambda_3 <- cv_lasso_MCAR_model_3$lambda.min
-    lambda_4 <- cv_lasso_MCAR_model_4$lambda.min
-    lambda_5 <- cv_lasso_MCAR_model_5$lambda.min
-    
-    lasso_MCAR_model_1 <- glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[1]]),
-                                 y      = data.matrix(Y_handled_MCAR_list_of_columns[[1]]),
-                                 family = 'gaussian',
-                                 alpha  = 1,
-                                 lambda = lambda_1)
-    lasso_MCAR_model_2 <- glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[2]]),
-                                 y      = data.matrix(Y_handled_MCAR_list_of_columns[[2]]),
-                                 family = 'gaussian',
-                                 alpha  = 1,
-                                 lambda = lambda_2)
-    lasso_MCAR_model_3 <- glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[3]]),
-                                 y      = data.matrix(Y_handled_MCAR_list_of_columns[[3]]),
-                                 family = 'gaussian',
-                                 alpha  = 1,
-                                 lambda = lambda_3)
-    lasso_MCAR_model_4 <- glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[4]]),
-                                 y      = data.matrix(Y_handled_MCAR_list_of_columns[[4]]),
-                                 family = 'gaussian',
-                                 alpha  = 1,
-                                 lambda = lambda_4)
-    lasso_MCAR_model_5 <- glmnet(x      = data.matrix(X_handled_MCAR_list_of_datasets[[5]]),
-                                 y      = data.matrix(Y_handled_MCAR_list_of_columns[[5]]),
-                                 family = 'gaussian',
-                                 alpha  = 1,
-                                 lambda = lambda_5)
-    
-    lasso_MCAR_coefs_1 <- as.vector(lasso_MCAR_model_1$beta)
-    lasso_MCAR_coefs_2 <- as.vector(lasso_MCAR_model_2$beta)
-    lasso_MCAR_coefs_3 <- as.vector(lasso_MCAR_model_3$beta)
-    lasso_MCAR_coefs_4 <- as.vector(lasso_MCAR_model_4$beta)
-    lasso_MCAR_coefs_5 <- as.vector(lasso_MCAR_model_5$beta)
-    
-    names(lasso_MCAR_coefs_1)   <- rownames(lasso_MCAR_model_1$beta)
-    names(lasso_MCAR_coefs_2)   <- rownames(lasso_MCAR_model_2$beta)
-    names(lasso_MCAR_coefs_3)   <- rownames(lasso_MCAR_model_3$beta)
-    names(lasso_MCAR_coefs_4)   <- rownames(lasso_MCAR_model_4$beta)
-    names(lasso_MCAR_coefs_5)   <- rownames(lasso_MCAR_model_5$beta)
-    
-    lasso_MCAR_vars_selected_1  <- union(c('X'), names(lasso_MCAR_coefs_1[lasso_MCAR_coefs_1 != 0.0])) # always select X
-    lasso_MCAR_vars_selected_2  <- union(c('X'), names(lasso_MCAR_coefs_2[lasso_MCAR_coefs_2 != 0.0])) # always select X
-    lasso_MCAR_vars_selected_3  <- union(c('X'), names(lasso_MCAR_coefs_3[lasso_MCAR_coefs_3 != 0.0])) # always select X
-    lasso_MCAR_vars_selected_4  <- union(c('X'), names(lasso_MCAR_coefs_4[lasso_MCAR_coefs_4 != 0.0])) # always select X
-    lasso_MCAR_vars_selected_5  <- union(c('X'), names(lasso_MCAR_coefs_5[lasso_MCAR_coefs_5 != 0.0])) # always select X
-    
-    lasso_MCAR_vars_selected_1  <- lasso_MCAR_vars_selected_1[lasso_MCAR_vars_selected_1 != "(Intercept)"] # exclude intercept
-    lasso_MCAR_vars_selected_2  <- lasso_MCAR_vars_selected_2[lasso_MCAR_vars_selected_2 != "(Intercept)"] # exclude intercept
-    lasso_MCAR_vars_selected_3  <- lasso_MCAR_vars_selected_3[lasso_MCAR_vars_selected_3 != "(Intercept)"] # exclude intercept
-    lasso_MCAR_vars_selected_4  <- lasso_MCAR_vars_selected_4[lasso_MCAR_vars_selected_4 != "(Intercept)"] # exclude intercept
-    lasso_MCAR_vars_selected_5  <- lasso_MCAR_vars_selected_5[lasso_MCAR_vars_selected_5 != "(Intercept)"] # exclude intercept
-    
-    lasso_MCAR_vars_selected_1 <- vars_selected_string_to_binary(vars_selected = lasso_MCAR_vars_selected_1, var_names = var_names_except_Y)
-    lasso_MCAR_vars_selected_2 <- vars_selected_string_to_binary(vars_selected = lasso_MCAR_vars_selected_2, var_names = var_names_except_Y)
-    lasso_MCAR_vars_selected_3 <- vars_selected_string_to_binary(vars_selected = lasso_MCAR_vars_selected_3, var_names = var_names_except_Y)
-    lasso_MCAR_vars_selected_4 <- vars_selected_string_to_binary(vars_selected = lasso_MCAR_vars_selected_4, var_names = var_names_except_Y)
-    lasso_MCAR_vars_selected_5 <- vars_selected_string_to_binary(vars_selected = lasso_MCAR_vars_selected_5, var_names = var_names_except_Y)
-    
-    lasso_MCAR_vars_selected_mean <- colMeans(rbind(lasso_MCAR_vars_selected_1,
-                                                    lasso_MCAR_vars_selected_2,
-                                                    lasso_MCAR_vars_selected_3,
-                                                    lasso_MCAR_vars_selected_4,
-                                                    lasso_MCAR_vars_selected_5),
-                                              na.rm = TRUE)
-    
-    lasso_MCAR_vars_selected_more_than_half <- names(lasso_MCAR_vars_selected_mean[lasso_MCAR_vars_selected_mean >= 0.5])
-    
-    two_step_LASSO_MCAR_model_1 <- glm(make_model_formula(vars_selected = lasso_MCAR_vars_selected_more_than_half),
-                                       data   = handled_MCAR_list_of_datasets[[1]],
-                                       family = "gaussian")
-    two_step_LASSO_MCAR_model_2 <- glm(make_model_formula(vars_selected = lasso_MCAR_vars_selected_more_than_half),
-                                       data   = handled_MCAR_list_of_datasets[[2]],
-                                       family = "gaussian")
-    two_step_LASSO_MCAR_model_3 <- glm(make_model_formula(vars_selected = lasso_MCAR_vars_selected_more_than_half),
-                                       data   = handled_MCAR_list_of_datasets[[3]],
-                                       family = "gaussian")
-    two_step_LASSO_MCAR_model_4 <- glm(make_model_formula(vars_selected = lasso_MCAR_vars_selected_more_than_half),
-                                       data   = handled_MCAR_list_of_datasets[[4]],
-                                       family = "gaussian")
-    two_step_LASSO_MCAR_model_5 <- glm(make_model_formula(vars_selected = lasso_MCAR_vars_selected_more_than_half),
-                                       data   = handled_MCAR_list_of_datasets[[5]],
+    two_step_LASSO_missingness_model_5 <- glm(make_model_formula(vars_selected = lasso_missingness_vars_selected_more_than_half),
+                                       data   = handled_missingness_list_of_datasets[[5]],
                                        family = "gaussian")
     
-    two_step_LASSO_MCAR_causal_effect_estimate <- mean(two_step_LASSO_MCAR_model_1$coefficients['X'],
-                                                       two_step_LASSO_MCAR_model_2$coefficients['X'],
-                                                       two_step_LASSO_MCAR_model_3$coefficients['X'],
-                                                       two_step_LASSO_MCAR_model_4$coefficients['X'],
-                                                       two_step_LASSO_MCAR_model_5$coefficients['X'])
+    two_step_LASSO_missingness_causal_effect_estimate <- mean(two_step_LASSO_missingness_model_1$coefficients['X'],
+                                                       two_step_LASSO_missingness_model_2$coefficients['X'],
+                                                       two_step_LASSO_missingness_model_3$coefficients['X'],
+                                                       two_step_LASSO_missingness_model_4$coefficients['X'],
+                                                       two_step_LASSO_missingness_model_5$coefficients['X'])
+    
 
     # MI LASSO_x
     
-    cv_lasso_X_MNAR_model_1 <- cv.glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[1]]),
-                                         y      = data.matrix(X_handled_MNAR_list_of_columns[[1]]),
+    cv_lasso_X_missingness_model_1 <- cv.glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[1]]),
+                                         y      = data.matrix(X_handled_missingness_list_of_columns[[1]]),
                                          family = 'gaussian',
                                          alpha  = 1)
-    cv_lasso_X_MNAR_model_2 <- cv.glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[2]]),
-                                         y      = data.matrix(X_handled_MNAR_list_of_columns[[2]]),
+    cv_lasso_X_missingness_model_2 <- cv.glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[2]]),
+                                         y      = data.matrix(X_handled_missingness_list_of_columns[[2]]),
                                          family = 'gaussian',
                                          alpha  = 1)
-    cv_lasso_X_MNAR_model_3 <- cv.glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[3]]),
-                                         y      = data.matrix(X_handled_MNAR_list_of_columns[[3]]),
+    cv_lasso_X_missingness_model_3 <- cv.glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[3]]),
+                                         y      = data.matrix(X_handled_missingness_list_of_columns[[3]]),
                                          family = 'gaussian',
                                          alpha  = 1)
-    cv_lasso_X_MNAR_model_4 <- cv.glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[4]]),
-                                         y      = data.matrix(X_handled_MNAR_list_of_columns[[4]]),
+    cv_lasso_X_missingness_model_4 <- cv.glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[4]]),
+                                         y      = data.matrix(X_handled_missingness_list_of_columns[[4]]),
                                          family = 'gaussian',
                                          alpha  = 1)
-    cv_lasso_X_MNAR_model_5 <- cv.glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[5]]),
-                                         y      = data.matrix(X_handled_MNAR_list_of_columns[[5]]),
+    cv_lasso_X_missingness_model_5 <- cv.glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[5]]),
+                                         y      = data.matrix(X_handled_missingness_list_of_columns[[5]]),
                                          family = 'gaussian',
                                          alpha  = 1)
     
-    lambda_1 <- cv_lasso_X_MNAR_model_1$lambda.min
-    lambda_2 <- cv_lasso_X_MNAR_model_2$lambda.min
-    lambda_3 <- cv_lasso_X_MNAR_model_3$lambda.min
-    lambda_4 <- cv_lasso_X_MNAR_model_4$lambda.min
-    lambda_5 <- cv_lasso_X_MNAR_model_5$lambda.min
+    lambda_1 <- cv_lasso_X_missingness_model_1$lambda.min
+    lambda_2 <- cv_lasso_X_missingness_model_2$lambda.min
+    lambda_3 <- cv_lasso_X_missingness_model_3$lambda.min
+    lambda_4 <- cv_lasso_X_missingness_model_4$lambda.min
+    lambda_5 <- cv_lasso_X_missingness_model_5$lambda.min
     
-    lasso_X_MNAR_model_1 <- glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[1]]),
-                                   y      = data.matrix(X_handled_MNAR_list_of_columns[[1]]),
+    lasso_X_missingness_model_1 <- glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[1]]),
+                                   y      = data.matrix(X_handled_missingness_list_of_columns[[1]]),
                                    family = 'gaussian',
                                    alpha  = 1,
                                    lambda = lambda_1)
-    lasso_X_MNAR_model_2 <- glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[2]]),
-                                   y      = data.matrix(X_handled_MNAR_list_of_columns[[2]]),
+    lasso_X_missingness_model_2 <- glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[2]]),
+                                   y      = data.matrix(X_handled_missingness_list_of_columns[[2]]),
                                    family = 'gaussian',
                                    alpha  = 1,
                                    lambda = lambda_2)
-    lasso_X_MNAR_model_3 <- glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[3]]),
-                                   y      = data.matrix(X_handled_MNAR_list_of_columns[[3]]),
+    lasso_X_missingness_model_3 <- glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[3]]),
+                                   y      = data.matrix(X_handled_missingness_list_of_columns[[3]]),
                                    family = 'gaussian',
                                    alpha  = 1,
                                    lambda = lambda_3)
-    lasso_X_MNAR_model_4 <- glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[4]]),
-                                   y      = data.matrix(X_handled_MNAR_list_of_columns[[4]]),
+    lasso_X_missingness_model_4 <- glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[4]]),
+                                   y      = data.matrix(X_handled_missingness_list_of_columns[[4]]),
                                    family = 'gaussian',
                                    alpha  = 1,
                                    lambda = lambda_4)
-    lasso_X_MNAR_model_5 <- glmnet(x      = data.matrix(Z_handled_MNAR_list_of_datasets[[5]]),
-                                   y      = data.matrix(X_handled_MNAR_list_of_columns[[5]]),
+    lasso_X_missingness_model_5 <- glmnet(x      = data.matrix(Z_handled_missingness_list_of_datasets[[5]]),
+                                   y      = data.matrix(X_handled_missingness_list_of_columns[[5]]),
                                    family = 'gaussian',
                                    alpha  = 1,
                                    lambda = lambda_5)
     
-    lasso_X_MNAR_coefs_1 <- as.vector(lasso_X_MNAR_model_1$beta)
-    lasso_X_MNAR_coefs_2 <- as.vector(lasso_X_MNAR_model_2$beta)
-    lasso_X_MNAR_coefs_3 <- as.vector(lasso_X_MNAR_model_3$beta)
-    lasso_X_MNAR_coefs_4 <- as.vector(lasso_X_MNAR_model_4$beta)
-    lasso_X_MNAR_coefs_5 <- as.vector(lasso_X_MNAR_model_5$beta)
+    lasso_X_missingness_coefs_1 <- as.vector(lasso_X_missingness_model_1$beta)
+    lasso_X_missingness_coefs_2 <- as.vector(lasso_X_missingness_model_2$beta)
+    lasso_X_missingness_coefs_3 <- as.vector(lasso_X_missingness_model_3$beta)
+    lasso_X_missingness_coefs_4 <- as.vector(lasso_X_missingness_model_4$beta)
+    lasso_X_missingness_coefs_5 <- as.vector(lasso_X_missingness_model_5$beta)
     
-    names(lasso_X_MNAR_coefs_1)   <- rownames(lasso_X_MNAR_model_1$beta)
-    names(lasso_X_MNAR_coefs_2)   <- rownames(lasso_X_MNAR_model_2$beta)
-    names(lasso_X_MNAR_coefs_3)   <- rownames(lasso_X_MNAR_model_3$beta)
-    names(lasso_X_MNAR_coefs_4)   <- rownames(lasso_X_MNAR_model_4$beta)
-    names(lasso_X_MNAR_coefs_5)   <- rownames(lasso_X_MNAR_model_5$beta)
+    names(lasso_X_missingness_coefs_1)   <- rownames(lasso_X_missingness_model_1$beta)
+    names(lasso_X_missingness_coefs_2)   <- rownames(lasso_X_missingness_model_2$beta)
+    names(lasso_X_missingness_coefs_3)   <- rownames(lasso_X_missingness_model_3$beta)
+    names(lasso_X_missingness_coefs_4)   <- rownames(lasso_X_missingness_model_4$beta)
+    names(lasso_X_missingness_coefs_5)   <- rownames(lasso_X_missingness_model_5$beta)
     
-    lasso_X_MNAR_vars_selected_1  <- union(c('X'), names(lasso_X_MNAR_coefs_1[lasso_X_MNAR_coefs_1 != 0.0])) # always select X
-    lasso_X_MNAR_vars_selected_2  <- union(c('X'), names(lasso_X_MNAR_coefs_2[lasso_X_MNAR_coefs_2 != 0.0])) # always select X
-    lasso_X_MNAR_vars_selected_3  <- union(c('X'), names(lasso_X_MNAR_coefs_3[lasso_X_MNAR_coefs_3 != 0.0])) # always select X
-    lasso_X_MNAR_vars_selected_4  <- union(c('X'), names(lasso_X_MNAR_coefs_4[lasso_X_MNAR_coefs_4 != 0.0])) # always select X
-    lasso_X_MNAR_vars_selected_5  <- union(c('X'), names(lasso_X_MNAR_coefs_5[lasso_X_MNAR_coefs_5 != 0.0])) # always select X
+    lasso_X_missingness_vars_selected_1  <- union(c('X'), names(lasso_X_missingness_coefs_1[lasso_X_missingness_coefs_1 != 0.0])) # always select X
+    lasso_X_missingness_vars_selected_2  <- union(c('X'), names(lasso_X_missingness_coefs_2[lasso_X_missingness_coefs_2 != 0.0])) # always select X
+    lasso_X_missingness_vars_selected_3  <- union(c('X'), names(lasso_X_missingness_coefs_3[lasso_X_missingness_coefs_3 != 0.0])) # always select X
+    lasso_X_missingness_vars_selected_4  <- union(c('X'), names(lasso_X_missingness_coefs_4[lasso_X_missingness_coefs_4 != 0.0])) # always select X
+    lasso_X_missingness_vars_selected_5  <- union(c('X'), names(lasso_X_missingness_coefs_5[lasso_X_missingness_coefs_5 != 0.0])) # always select X
     
-    lasso_X_MNAR_vars_selected_1  <- lasso_X_MNAR_vars_selected_1[lasso_X_MNAR_vars_selected_1 != "(Intercept)"] # exclude intercept
-    lasso_X_MNAR_vars_selected_2  <- lasso_X_MNAR_vars_selected_2[lasso_X_MNAR_vars_selected_2 != "(Intercept)"] # exclude intercept
-    lasso_X_MNAR_vars_selected_3  <- lasso_X_MNAR_vars_selected_3[lasso_X_MNAR_vars_selected_3 != "(Intercept)"] # exclude intercept
-    lasso_X_MNAR_vars_selected_4  <- lasso_X_MNAR_vars_selected_4[lasso_X_MNAR_vars_selected_4 != "(Intercept)"] # exclude intercept
-    lasso_X_MNAR_vars_selected_5  <- lasso_X_MNAR_vars_selected_5[lasso_X_MNAR_vars_selected_5 != "(Intercept)"] # exclude intercept
+    lasso_X_missingness_vars_selected_1  <- lasso_X_missingness_vars_selected_1[lasso_X_missingness_vars_selected_1 != "(Intercept)"] # exclude intercept
+    lasso_X_missingness_vars_selected_2  <- lasso_X_missingness_vars_selected_2[lasso_X_missingness_vars_selected_2 != "(Intercept)"] # exclude intercept
+    lasso_X_missingness_vars_selected_3  <- lasso_X_missingness_vars_selected_3[lasso_X_missingness_vars_selected_3 != "(Intercept)"] # exclude intercept
+    lasso_X_missingness_vars_selected_4  <- lasso_X_missingness_vars_selected_4[lasso_X_missingness_vars_selected_4 != "(Intercept)"] # exclude intercept
+    lasso_X_missingness_vars_selected_5  <- lasso_X_missingness_vars_selected_5[lasso_X_missingness_vars_selected_5 != "(Intercept)"] # exclude intercept
     
-    lasso_X_MNAR_vars_selected_1 <- vars_selected_string_to_binary(vars_selected = lasso_X_MNAR_vars_selected_1, var_names = var_names_except_Y)
-    lasso_X_MNAR_vars_selected_2 <- vars_selected_string_to_binary(vars_selected = lasso_X_MNAR_vars_selected_2, var_names = var_names_except_Y)
-    lasso_X_MNAR_vars_selected_3 <- vars_selected_string_to_binary(vars_selected = lasso_X_MNAR_vars_selected_3, var_names = var_names_except_Y)
-    lasso_X_MNAR_vars_selected_4 <- vars_selected_string_to_binary(vars_selected = lasso_X_MNAR_vars_selected_4, var_names = var_names_except_Y)
-    lasso_X_MNAR_vars_selected_5 <- vars_selected_string_to_binary(vars_selected = lasso_X_MNAR_vars_selected_5, var_names = var_names_except_Y)
+    lasso_X_missingness_vars_selected_1 <- vars_selected_string_to_binary(vars_selected = lasso_X_missingness_vars_selected_1, var_names = var_names_except_Y)
+    lasso_X_missingness_vars_selected_2 <- vars_selected_string_to_binary(vars_selected = lasso_X_missingness_vars_selected_2, var_names = var_names_except_Y)
+    lasso_X_missingness_vars_selected_3 <- vars_selected_string_to_binary(vars_selected = lasso_X_missingness_vars_selected_3, var_names = var_names_except_Y)
+    lasso_X_missingness_vars_selected_4 <- vars_selected_string_to_binary(vars_selected = lasso_X_missingness_vars_selected_4, var_names = var_names_except_Y)
+    lasso_X_missingness_vars_selected_5 <- vars_selected_string_to_binary(vars_selected = lasso_X_missingness_vars_selected_5, var_names = var_names_except_Y)
     
-    lasso_X_MNAR_vars_selected_mean <- colMeans(rbind(lasso_X_MNAR_vars_selected_1,
-                                                      lasso_X_MNAR_vars_selected_2,
-                                                      lasso_X_MNAR_vars_selected_3,
-                                                      lasso_X_MNAR_vars_selected_4,
-                                                      lasso_X_MNAR_vars_selected_5),
+    lasso_X_missingness_vars_selected_mean <- colMeans(rbind(lasso_X_missingness_vars_selected_1,
+                                                      lasso_X_missingness_vars_selected_2,
+                                                      lasso_X_missingness_vars_selected_3,
+                                                      lasso_X_missingness_vars_selected_4,
+                                                      lasso_X_missingness_vars_selected_5),
                                                 na.rm = TRUE)
     
-    lasso_X_MNAR_vars_selected_more_than_half <- names(lasso_X_MNAR_vars_selected_mean[lasso_X_MNAR_vars_selected_mean >= 0.5])
+    lasso_X_missingness_vars_selected_more_than_half <- names(lasso_X_missingness_vars_selected_mean[lasso_X_missingness_vars_selected_mean >= 0.5])
     
-    two_step_LASSO_X_MNAR_model_1 <- glm(make_model_formula(vars_selected = lasso_X_MNAR_vars_selected_more_than_half),
-                                         data   = handled_MNAR_list_of_datasets[[1]],
+    two_step_LASSO_X_missingness_model_1 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
+                                         data   = handled_missingness_list_of_datasets[[1]],
                                          family = "gaussian")
-    two_step_LASSO_X_MNAR_model_2 <- glm(make_model_formula(vars_selected = lasso_X_MNAR_vars_selected_more_than_half),
-                                         data   = handled_MNAR_list_of_datasets[[2]],
+    two_step_LASSO_X_missingness_model_2 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
+                                         data   = handled_missingness_list_of_datasets[[2]],
                                          family = "gaussian")
-    two_step_LASSO_X_MNAR_model_3 <- glm(make_model_formula(vars_selected = lasso_X_MNAR_vars_selected_more_than_half),
-                                         data   = handled_MNAR_list_of_datasets[[3]],
+    two_step_LASSO_X_missingness_model_3 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
+                                         data   = handled_missingness_list_of_datasets[[3]],
                                          family = "gaussian")
-    two_step_LASSO_X_MNAR_model_4 <- glm(make_model_formula(vars_selected = lasso_X_MNAR_vars_selected_more_than_half),
-                                         data   = handled_MNAR_list_of_datasets[[4]],
+    two_step_LASSO_X_missingness_model_4 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
+                                         data   = handled_missingness_list_of_datasets[[4]],
                                          family = "gaussian")
-    two_step_LASSO_X_MNAR_model_5 <- glm(make_model_formula(vars_selected = lasso_X_MNAR_vars_selected_more_than_half),
-                                         data   = handled_MNAR_list_of_datasets[[5]],
-                                         family = "gaussian")
-    
-    two_step_LASSO_X_MNAR_causal_effect_estimate <- mean(two_step_LASSO_X_MNAR_model_1$coefficients['X'],
-                                                         two_step_LASSO_X_MNAR_model_2$coefficients['X'],
-                                                         two_step_LASSO_X_MNAR_model_3$coefficients['X'],
-                                                         two_step_LASSO_X_MNAR_model_4$coefficients['X'],
-                                                         two_step_LASSO_X_MNAR_model_5$coefficients['X'])
-    
-    cv_lasso_X_MCAR_model_1 <- cv.glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[1]]),
-                                         y      = data.matrix(X_handled_MCAR_list_of_columns[[1]]),
-                                         family = 'gaussian',
-                                         alpha  = 1)
-    cv_lasso_X_MCAR_model_2 <- cv.glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[2]]),
-                                         y      = data.matrix(X_handled_MCAR_list_of_columns[[2]]),
-                                         family = 'gaussian',
-                                         alpha  = 1)
-    cv_lasso_X_MCAR_model_3 <- cv.glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[3]]),
-                                         y      = data.matrix(X_handled_MCAR_list_of_columns[[3]]),
-                                         family = 'gaussian',
-                                         alpha  = 1)
-    cv_lasso_X_MCAR_model_4 <- cv.glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[4]]),
-                                         y      = data.matrix(X_handled_MCAR_list_of_columns[[4]]),
-                                         family = 'gaussian',
-                                         alpha  = 1)
-    cv_lasso_X_MCAR_model_5 <- cv.glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[5]]),
-                                         y      = data.matrix(X_handled_MCAR_list_of_columns[[5]]),
-                                         family = 'gaussian',
-                                         alpha  = 1)
-    
-    lambda_1 <- cv_lasso_X_MCAR_model_1$lambda.min
-    lambda_2 <- cv_lasso_X_MCAR_model_2$lambda.min
-    lambda_3 <- cv_lasso_X_MCAR_model_3$lambda.min
-    lambda_4 <- cv_lasso_X_MCAR_model_4$lambda.min
-    lambda_5 <- cv_lasso_X_MCAR_model_5$lambda.min
-    
-    lasso_X_MCAR_model_1 <- glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[1]]),
-                                   y      = data.matrix(X_handled_MCAR_list_of_columns[[1]]),
-                                   family = 'gaussian',
-                                   alpha  = 1,
-                                   lambda = lambda_1)
-    lasso_X_MCAR_model_2 <- glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[2]]),
-                                   y      = data.matrix(X_handled_MCAR_list_of_columns[[2]]),
-                                   family = 'gaussian',
-                                   alpha  = 1,
-                                   lambda = lambda_2)
-    lasso_X_MCAR_model_3 <- glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[3]]),
-                                   y      = data.matrix(X_handled_MCAR_list_of_columns[[3]]),
-                                   family = 'gaussian',
-                                   alpha  = 1,
-                                   lambda = lambda_3)
-    lasso_X_MCAR_model_4 <- glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[4]]),
-                                   y      = data.matrix(X_handled_MCAR_list_of_columns[[4]]),
-                                   family = 'gaussian',
-                                   alpha  = 1,
-                                   lambda = lambda_4)
-    lasso_X_MCAR_model_5 <- glmnet(x      = data.matrix(Z_handled_MCAR_list_of_datasets[[5]]),
-                                   y      = data.matrix(X_handled_MCAR_list_of_columns[[5]]),
-                                   family = 'gaussian',
-                                   alpha  = 1,
-                                   lambda = lambda_5)
-    
-    lasso_X_MCAR_coefs_1 <- as.vector(lasso_X_MCAR_model_1$beta)
-    lasso_X_MCAR_coefs_2 <- as.vector(lasso_X_MCAR_model_2$beta)
-    lasso_X_MCAR_coefs_3 <- as.vector(lasso_X_MCAR_model_3$beta)
-    lasso_X_MCAR_coefs_4 <- as.vector(lasso_X_MCAR_model_4$beta)
-    lasso_X_MCAR_coefs_5 <- as.vector(lasso_X_MCAR_model_5$beta)
-    
-    names(lasso_X_MCAR_coefs_1)   <- rownames(lasso_X_MCAR_model_1$beta)
-    names(lasso_X_MCAR_coefs_2)   <- rownames(lasso_X_MCAR_model_2$beta)
-    names(lasso_X_MCAR_coefs_3)   <- rownames(lasso_X_MCAR_model_3$beta)
-    names(lasso_X_MCAR_coefs_4)   <- rownames(lasso_X_MCAR_model_4$beta)
-    names(lasso_X_MCAR_coefs_5)   <- rownames(lasso_X_MCAR_model_5$beta)
-    
-    lasso_X_MCAR_vars_selected_1  <- union(c('X'), names(lasso_X_MCAR_coefs_1[lasso_X_MCAR_coefs_1 != 0.0])) # always select X
-    lasso_X_MCAR_vars_selected_2  <- union(c('X'), names(lasso_X_MCAR_coefs_2[lasso_X_MCAR_coefs_2 != 0.0])) # always select X
-    lasso_X_MCAR_vars_selected_3  <- union(c('X'), names(lasso_X_MCAR_coefs_3[lasso_X_MCAR_coefs_3 != 0.0])) # always select X
-    lasso_X_MCAR_vars_selected_4  <- union(c('X'), names(lasso_X_MCAR_coefs_4[lasso_X_MCAR_coefs_4 != 0.0])) # always select X
-    lasso_X_MCAR_vars_selected_5  <- union(c('X'), names(lasso_X_MCAR_coefs_5[lasso_X_MCAR_coefs_5 != 0.0])) # always select X
-    
-    lasso_X_MCAR_vars_selected_1  <- lasso_X_MCAR_vars_selected_1[lasso_X_MCAR_vars_selected_1 != "(Intercept)"] # exclude intercept
-    lasso_X_MCAR_vars_selected_2  <- lasso_X_MCAR_vars_selected_2[lasso_X_MCAR_vars_selected_2 != "(Intercept)"] # exclude intercept
-    lasso_X_MCAR_vars_selected_3  <- lasso_X_MCAR_vars_selected_3[lasso_X_MCAR_vars_selected_3 != "(Intercept)"] # exclude intercept
-    lasso_X_MCAR_vars_selected_4  <- lasso_X_MCAR_vars_selected_4[lasso_X_MCAR_vars_selected_4 != "(Intercept)"] # exclude intercept
-    lasso_X_MCAR_vars_selected_5  <- lasso_X_MCAR_vars_selected_5[lasso_X_MCAR_vars_selected_5 != "(Intercept)"] # exclude intercept
-    
-    lasso_X_MCAR_vars_selected_1 <- vars_selected_string_to_binary(vars_selected = lasso_X_MCAR_vars_selected_1, var_names = var_names_except_Y)
-    lasso_X_MCAR_vars_selected_2 <- vars_selected_string_to_binary(vars_selected = lasso_X_MCAR_vars_selected_2, var_names = var_names_except_Y)
-    lasso_X_MCAR_vars_selected_3 <- vars_selected_string_to_binary(vars_selected = lasso_X_MCAR_vars_selected_3, var_names = var_names_except_Y)
-    lasso_X_MCAR_vars_selected_4 <- vars_selected_string_to_binary(vars_selected = lasso_X_MCAR_vars_selected_4, var_names = var_names_except_Y)
-    lasso_X_MCAR_vars_selected_5 <- vars_selected_string_to_binary(vars_selected = lasso_X_MCAR_vars_selected_5, var_names = var_names_except_Y)
-    
-    lasso_X_MCAR_vars_selected_mean <- colMeans(rbind(lasso_X_MCAR_vars_selected_1,
-                                                      lasso_X_MCAR_vars_selected_2,
-                                                      lasso_X_MCAR_vars_selected_3,
-                                                      lasso_X_MCAR_vars_selected_4,
-                                                      lasso_X_MCAR_vars_selected_5),
-                                                na.rm = TRUE)
-    
-    lasso_X_MCAR_vars_selected_more_than_half <- names(lasso_X_MCAR_vars_selected_mean[lasso_X_MCAR_vars_selected_mean >= 0.5])
-    
-    two_step_LASSO_X_MCAR_model_1 <- glm(make_model_formula(vars_selected = lasso_X_MCAR_vars_selected_more_than_half),
-                                         data   = handled_MCAR_list_of_datasets[[1]],
-                                         family = "gaussian")
-    two_step_LASSO_X_MCAR_model_2 <- glm(make_model_formula(vars_selected = lasso_X_MCAR_vars_selected_more_than_half),
-                                         data   = handled_MCAR_list_of_datasets[[2]],
-                                         family = "gaussian")
-    two_step_LASSO_X_MCAR_model_3 <- glm(make_model_formula(vars_selected = lasso_X_MCAR_vars_selected_more_than_half),
-                                         data   = handled_MCAR_list_of_datasets[[3]],
-                                         family = "gaussian")
-    two_step_LASSO_X_MCAR_model_4 <- glm(make_model_formula(vars_selected = lasso_X_MCAR_vars_selected_more_than_half),
-                                         data   = handled_MCAR_list_of_datasets[[4]],
-                                         family = "gaussian")
-    two_step_LASSO_X_MCAR_model_5 <- glm(make_model_formula(vars_selected = lasso_X_MCAR_vars_selected_more_than_half),
-                                         data   = handled_MCAR_list_of_datasets[[5]],
+    two_step_LASSO_X_missingness_model_5 <- glm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected_more_than_half),
+                                         data   = handled_missingness_list_of_datasets[[5]],
                                          family = "gaussian")
     
-    two_step_LASSO_X_MCAR_causal_effect_estimate <- mean(two_step_LASSO_X_MCAR_model_1$coefficients['X'],
-                                                         two_step_LASSO_X_MCAR_model_2$coefficients['X'],
-                                                         two_step_LASSO_X_MCAR_model_3$coefficients['X'],
-                                                         two_step_LASSO_X_MCAR_model_4$coefficients['X'],
-                                                         two_step_LASSO_X_MCAR_model_5$coefficients['X'])
+    two_step_LASSO_X_missingness_causal_effect_estimate <- mean(two_step_LASSO_X_missingness_model_1$coefficients['X'],
+                                                         two_step_LASSO_X_missingness_model_2$coefficients['X'],
+                                                         two_step_LASSO_X_missingness_model_3$coefficients['X'],
+                                                         two_step_LASSO_X_missingness_model_4$coefficients['X'],
+                                                         two_step_LASSO_X_missingness_model_5$coefficients['X'])
+    
 
     # MI LASSO_UNION
     
-    lasso_union_MNAR_vars_selected_1 <- lasso_MNAR_vars_selected_1 + lasso_X_MNAR_vars_selected_1
-    lasso_union_MNAR_vars_selected_1[lasso_union_MNAR_vars_selected_1 == 2] <- 1
+    lasso_union_missingness_vars_selected_1 <- lasso_missingness_vars_selected_1 + lasso_X_missingness_vars_selected_1
+    lasso_union_missingness_vars_selected_1[lasso_union_missingness_vars_selected_1 == 2] <- 1
     
-    lasso_union_MNAR_vars_selected_2 <- lasso_MNAR_vars_selected_2 + lasso_X_MNAR_vars_selected_2
-    lasso_union_MNAR_vars_selected_2[lasso_union_MNAR_vars_selected_2 == 2] <- 1
+    lasso_union_missingness_vars_selected_2 <- lasso_missingness_vars_selected_2 + lasso_X_missingness_vars_selected_2
+    lasso_union_missingness_vars_selected_2[lasso_union_missingness_vars_selected_2 == 2] <- 1
     
-    lasso_union_MNAR_vars_selected_3 <- lasso_MNAR_vars_selected_3 + lasso_X_MNAR_vars_selected_3
-    lasso_union_MNAR_vars_selected_3[lasso_union_MNAR_vars_selected_3 == 2] <- 1
+    lasso_union_missingness_vars_selected_3 <- lasso_missingness_vars_selected_3 + lasso_X_missingness_vars_selected_3
+    lasso_union_missingness_vars_selected_3[lasso_union_missingness_vars_selected_3 == 2] <- 1
     
-    lasso_union_MNAR_vars_selected_4 <- lasso_MNAR_vars_selected_4 + lasso_X_MNAR_vars_selected_4
-    lasso_union_MNAR_vars_selected_4[lasso_union_MNAR_vars_selected_4 == 2] <- 1
+    lasso_union_missingness_vars_selected_4 <- lasso_missingness_vars_selected_4 + lasso_X_missingness_vars_selected_4
+    lasso_union_missingness_vars_selected_4[lasso_union_missingness_vars_selected_4 == 2] <- 1
     
-    lasso_union_MNAR_vars_selected_5 <- lasso_MNAR_vars_selected_5 + lasso_X_MNAR_vars_selected_5
-    lasso_union_MNAR_vars_selected_5[lasso_union_MNAR_vars_selected_5 == 2] <- 1
+    lasso_union_missingness_vars_selected_5 <- lasso_missingness_vars_selected_5 + lasso_X_missingness_vars_selected_5
+    lasso_union_missingness_vars_selected_5[lasso_union_missingness_vars_selected_5 == 2] <- 1
     
-    lasso_union_MNAR_vars_selected_mean <- colMeans(rbind(lasso_union_MNAR_vars_selected_1,
-                                                          lasso_union_MNAR_vars_selected_2,
-                                                          lasso_union_MNAR_vars_selected_3,
-                                                          lasso_union_MNAR_vars_selected_4,
-                                                          lasso_union_MNAR_vars_selected_5),
+    lasso_union_missingness_vars_selected_mean <- colMeans(rbind(lasso_union_missingness_vars_selected_1,
+                                                          lasso_union_missingness_vars_selected_2,
+                                                          lasso_union_missingness_vars_selected_3,
+                                                          lasso_union_missingness_vars_selected_4,
+                                                          lasso_union_missingness_vars_selected_5),
                                                     na.rm = TRUE)
     
-    lasso_union_MNAR_vars_selected_more_than_half <- names(lasso_union_MNAR_vars_selected_mean[lasso_union_MNAR_vars_selected_mean >= 0.5])
+    lasso_union_missingness_vars_selected_more_than_half <- names(lasso_union_missingness_vars_selected_mean[lasso_union_missingness_vars_selected_mean >= 0.5])
     
-    two_step_LASSO_union_MNAR_model_1 <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected_more_than_half),
-                                             data   = handled_MNAR_list_of_datasets[[1]],
+    two_step_LASSO_union_missingness_model_1 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
+                                             data   = handled_missingness_list_of_datasets[[1]],
                                              family = "gaussian")
-    two_step_LASSO_union_MNAR_model_2 <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected_more_than_half),
-                                             data   = handled_MNAR_list_of_datasets[[2]],
+    two_step_LASSO_union_missingness_model_2 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
+                                             data   = handled_missingness_list_of_datasets[[2]],
                                              family = "gaussian")
-    two_step_LASSO_union_MNAR_model_3 <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected_more_than_half),
-                                             data   = handled_MNAR_list_of_datasets[[3]],
+    two_step_LASSO_union_missingness_model_3 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
+                                             data   = handled_missingness_list_of_datasets[[3]],
                                              family = "gaussian")
-    two_step_LASSO_union_MNAR_model_4 <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected_more_than_half),
-                                             data   = handled_MNAR_list_of_datasets[[4]],
+    two_step_LASSO_union_missingness_model_4 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
+                                             data   = handled_missingness_list_of_datasets[[4]],
                                              family = "gaussian")
-    two_step_LASSO_union_MNAR_model_5 <- glm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected_more_than_half),
-                                             data   = handled_MNAR_list_of_datasets[[5]],
-                                             family = "gaussian")
-    
-    two_step_LASSO_union_MNAR_causal_effect_estimate <- mean(two_step_LASSO_union_MNAR_model_1$coefficients['X'],
-                                                             two_step_LASSO_union_MNAR_model_2$coefficients['X'],
-                                                             two_step_LASSO_union_MNAR_model_3$coefficients['X'],
-                                                             two_step_LASSO_union_MNAR_model_4$coefficients['X'],
-                                                             two_step_LASSO_union_MNAR_model_5$coefficients['X'])
-    
-    lasso_union_MCAR_vars_selected_1 <- lasso_MCAR_vars_selected_1 + lasso_X_MCAR_vars_selected_1
-    lasso_union_MCAR_vars_selected_1[lasso_union_MCAR_vars_selected_1 == 2] <- 1
-    
-    lasso_union_MCAR_vars_selected_2 <- lasso_MCAR_vars_selected_2 + lasso_X_MCAR_vars_selected_2
-    lasso_union_MCAR_vars_selected_2[lasso_union_MCAR_vars_selected_2 == 2] <- 1
-    
-    lasso_union_MCAR_vars_selected_3 <- lasso_MCAR_vars_selected_3 + lasso_X_MCAR_vars_selected_3
-    lasso_union_MCAR_vars_selected_3[lasso_union_MCAR_vars_selected_3 == 2] <- 1
-    
-    lasso_union_MCAR_vars_selected_4 <- lasso_MCAR_vars_selected_4 + lasso_X_MCAR_vars_selected_4
-    lasso_union_MCAR_vars_selected_4[lasso_union_MCAR_vars_selected_4 == 2] <- 1
-    
-    lasso_union_MCAR_vars_selected_5 <- lasso_MCAR_vars_selected_5 + lasso_X_MCAR_vars_selected_5
-    lasso_union_MCAR_vars_selected_5[lasso_union_MCAR_vars_selected_5 == 2] <- 1
-    
-    lasso_union_MCAR_vars_selected_mean <- colMeans(rbind(lasso_union_MCAR_vars_selected_1,
-                                                          lasso_union_MCAR_vars_selected_2,
-                                                          lasso_union_MCAR_vars_selected_3,
-                                                          lasso_union_MCAR_vars_selected_4,
-                                                          lasso_union_MCAR_vars_selected_5),
-                                                    na.rm = TRUE)
-    
-    lasso_union_MCAR_vars_selected_more_than_half <- names(lasso_union_MCAR_vars_selected_mean[lasso_union_MCAR_vars_selected_mean >= 0.5])
-    
-    two_step_LASSO_union_MCAR_model_1 <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected_more_than_half),
-                                             data   = handled_MCAR_list_of_datasets[[1]],
-                                             family = "gaussian")
-    two_step_LASSO_union_MCAR_model_2 <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected_more_than_half),
-                                             data   = handled_MCAR_list_of_datasets[[2]],
-                                             family = "gaussian")
-    two_step_LASSO_union_MCAR_model_3 <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected_more_than_half),
-                                             data   = handled_MCAR_list_of_datasets[[3]],
-                                             family = "gaussian")
-    two_step_LASSO_union_MCAR_model_4 <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected_more_than_half),
-                                             data   = handled_MCAR_list_of_datasets[[4]],
-                                             family = "gaussian")
-    two_step_LASSO_union_MCAR_model_5 <- glm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected_more_than_half),
-                                             data   = handled_MCAR_list_of_datasets[[5]],
+    two_step_LASSO_union_missingness_model_5 <- glm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected_more_than_half),
+                                             data   = handled_missingness_list_of_datasets[[5]],
                                              family = "gaussian")
     
-    two_step_LASSO_union_MCAR_causal_effect_estimate <- mean(two_step_LASSO_union_MCAR_model_1$coefficients['X'],
-                                                             two_step_LASSO_union_MCAR_model_2$coefficients['X'],
-                                                             two_step_LASSO_union_MCAR_model_3$coefficients['X'],
-                                                             two_step_LASSO_union_MCAR_model_4$coefficients['X'],
-                                                             two_step_LASSO_union_MCAR_model_5$coefficients['X'])
+    two_step_LASSO_union_missingness_causal_effect_estimate <- mean(two_step_LASSO_union_missingness_model_1$coefficients['X'],
+                                                             two_step_LASSO_union_missingness_model_2$coefficients['X'],
+                                                             two_step_LASSO_union_missingness_model_3$coefficients['X'],
+                                                             two_step_LASSO_union_missingness_model_4$coefficients['X'],
+                                                             two_step_LASSO_union_missingness_model_5$coefficients['X'])
+    
     
     # ----- Record covariate selection -----
     
-    MNAR_cov_selection["two_step_lasso", , repetition]       <- vars_selected_string_to_binary(vars_selected = lasso_MNAR_vars_selected_more_than_half,       var_names = var_names_except_Y_with_intercept)
-    MNAR_cov_selection["two_step_lasso_X", , repetition]     <- vars_selected_string_to_binary(vars_selected = lasso_X_MNAR_vars_selected_more_than_half,     var_names = var_names_except_Y_with_intercept)
-    MNAR_cov_selection["two_step_lasso_union", , repetition] <- vars_selected_string_to_binary(vars_selected = lasso_union_MNAR_vars_selected_more_than_half, var_names = var_names_except_Y_with_intercept)
-    
-    MCAR_cov_selection["two_step_lasso", , repetition]       <- vars_selected_string_to_binary(vars_selected = lasso_MCAR_vars_selected_more_than_half,       var_names = var_names_except_Y_with_intercept)
-    MCAR_cov_selection["two_step_lasso_X", , repetition]     <- vars_selected_string_to_binary(vars_selected = lasso_X_MCAR_vars_selected_more_than_half,     var_names = var_names_except_Y_with_intercept)
-    MCAR_cov_selection["two_step_lasso_union", , repetition] <- vars_selected_string_to_binary(vars_selected = lasso_union_MCAR_vars_selected_more_than_half, var_names = var_names_except_Y_with_intercept)
+    missingness_cov_selection["two_step_lasso", , repetition]       <- vars_selected_string_to_binary(vars_selected = lasso_missingness_vars_selected_more_than_half,       var_names = var_names_except_Y_with_intercept)
+    missingness_cov_selection["two_step_lasso_X", , repetition]     <- vars_selected_string_to_binary(vars_selected = lasso_X_missingness_vars_selected_more_than_half,     var_names = var_names_except_Y_with_intercept)
+    missingness_cov_selection["two_step_lasso_union", , repetition] <- vars_selected_string_to_binary(vars_selected = lasso_union_missingness_vars_selected_more_than_half, var_names = var_names_except_Y_with_intercept)
     
     # ----- Record results -----
     
-    MNAR_results["two_step_lasso", "causal_true_value", repetition]      <- causal
-    MNAR_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_LASSO_MNAR_causal_effect_estimate)
-    MNAR_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_LASSO_MNAR_causal_effect_estimate) - causal)
-    MNAR_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_MNAR_causal_effect_estimate) - causal)/causal)
-    MNAR_results["two_step_lasso", "causal_coverage", repetition]        <- NaN
-    MNAR_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_MNAR_vars_selected_more_than_half[lasso_MNAR_vars_selected_more_than_half != 'X'])
-    MNAR_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_MNAR_vars_selected_more_than_half[lasso_MNAR_vars_selected_more_than_half != 'X']) / num_total_conf
-    MNAR_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
-    MNAR_results["two_step_lasso", "model_SE", repetition]               <- NaN
+    missingness_results["two_step_lasso", "causal_true_value", repetition]      <- causal
+    missingness_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_LASSO_missingness_causal_effect_estimate)
+    missingness_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_LASSO_missingness_causal_effect_estimate) - causal)
+    missingness_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_missingness_causal_effect_estimate) - causal)/causal)
+    missingness_results["two_step_lasso", "causal_coverage", repetition]        <- NaN
+    missingness_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
+    missingness_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X'])
+    missingness_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X']) / num_total_conf
+    missingness_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
+    missingness_results["two_step_lasso", "model_SE", repetition]               <- NaN
     
-    MNAR_results["two_step_lasso_X", "causal_true_value", repetition]      <- causal
-    MNAR_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_LASSO_X_MNAR_causal_effect_estimate)
-    MNAR_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_LASSO_X_MNAR_causal_effect_estimate) - causal)
-    MNAR_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_X_MNAR_causal_effect_estimate) - causal)/causal)
-    MNAR_results["two_step_lasso_X", "causal_coverage", repetition]        <- NaN
-    MNAR_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_MNAR_vars_selected_more_than_half[lasso_X_MNAR_vars_selected_more_than_half != 'X'])
-    MNAR_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_MNAR_vars_selected_more_than_half[lasso_X_MNAR_vars_selected_more_than_half != 'X']) / num_total_conf
-    MNAR_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
-    MNAR_results["two_step_lasso_X", "model_SE", repetition]               <- NaN
+    missingness_results["two_step_lasso_X", "causal_true_value", repetition]      <- causal
+    missingness_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_LASSO_X_missingness_causal_effect_estimate)
+    missingness_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_LASSO_X_missingness_causal_effect_estimate) - causal)
+    missingness_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_X_missingness_causal_effect_estimate) - causal)/causal)
+    missingness_results["two_step_lasso_X", "causal_coverage", repetition]        <- NaN
+    missingness_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
+    missingness_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_missingness_vars_selected_more_than_half[lasso_X_missingness_vars_selected_more_than_half != 'X'])
+    missingness_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_missingness_vars_selected_more_than_half[lasso_X_missingness_vars_selected_more_than_half != 'X']) / num_total_conf
+    missingness_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
+    missingness_results["two_step_lasso_X", "model_SE", repetition]               <- NaN
     
-    MNAR_results["two_step_lasso_union", "causal_true_value", repetition]      <- causal
-    MNAR_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_LASSO_union_MNAR_causal_effect_estimate)
-    MNAR_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_LASSO_union_MNAR_causal_effect_estimate) - causal)
-    MNAR_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_union_MNAR_causal_effect_estimate) - causal)/causal)
-    MNAR_results["two_step_lasso_union", "causal_coverage", repetition]        <- NaN
-    MNAR_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_MNAR_vars_selected_more_than_half[lasso_union_MNAR_vars_selected_more_than_half != 'X'])
-    MNAR_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_MNAR_vars_selected_more_than_half[lasso_union_MNAR_vars_selected_more_than_half != 'X']) / num_total_conf
-    MNAR_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
-    MNAR_results["two_step_lasso_union", "model_SE", repetition]               <- NaN
-    
-    MCAR_results["two_step_lasso", "causal_true_value", repetition]      <- causal
-    MCAR_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_LASSO_MCAR_causal_effect_estimate)
-    MCAR_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_LASSO_MCAR_causal_effect_estimate) - causal)
-    MCAR_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_MCAR_causal_effect_estimate) - causal)/causal)
-    MCAR_results["two_step_lasso", "causal_coverage", repetition]        <- NaN
-    MCAR_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_MCAR_vars_selected_more_than_half[lasso_MCAR_vars_selected_more_than_half != 'X'])
-    MCAR_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_MCAR_vars_selected_more_than_half[lasso_MCAR_vars_selected_more_than_half != 'X']) / num_total_conf
-    MCAR_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
-    MCAR_results["two_step_lasso", "model_SE", repetition]               <- NaN
-    
-    MCAR_results["two_step_lasso_X", "causal_true_value", repetition]      <- causal
-    MCAR_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_LASSO_X_MCAR_causal_effect_estimate)
-    MCAR_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_LASSO_X_MCAR_causal_effect_estimate) - causal)
-    MCAR_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_X_MCAR_causal_effect_estimate) - causal)/causal)
-    MCAR_results["two_step_lasso_X", "causal_coverage", repetition]        <- NaN
-    MCAR_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_MCAR_vars_selected_more_than_half[lasso_X_MCAR_vars_selected_more_than_half != 'X'])
-    MCAR_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_MCAR_vars_selected_more_than_half[lasso_X_MCAR_vars_selected_more_than_half != 'X']) / num_total_conf
-    MCAR_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
-    MCAR_results["two_step_lasso_X", "model_SE", repetition]               <- NaN
-    
-    MCAR_results["two_step_lasso_union", "causal_true_value", repetition]      <- causal
-    MCAR_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_LASSO_union_MCAR_causal_effect_estimate)
-    MCAR_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_LASSO_union_MCAR_causal_effect_estimate) - causal)
-    MCAR_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_union_MCAR_causal_effect_estimate) - causal)/causal)
-    MCAR_results["two_step_lasso_union", "causal_coverage", repetition]        <- NaN
-    MCAR_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_MCAR_vars_selected_more_than_half[lasso_union_MCAR_vars_selected_more_than_half != 'X'])
-    MCAR_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_MCAR_vars_selected_more_than_half[lasso_union_MCAR_vars_selected_more_than_half != 'X']) / num_total_conf
-    MCAR_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
-    MCAR_results["two_step_lasso_union", "model_SE", repetition]               <- NaN
+    missingness_results["two_step_lasso_union", "causal_true_value", repetition]      <- causal
+    missingness_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_LASSO_union_missingness_causal_effect_estimate)
+    missingness_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_LASSO_union_missingness_causal_effect_estimate) - causal)
+    missingness_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_LASSO_union_missingness_causal_effect_estimate) - causal)/causal)
+    missingness_results["two_step_lasso_union", "causal_coverage", repetition]        <- NaN
+    missingness_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
+    missingness_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_missingness_vars_selected_more_than_half[lasso_union_missingness_vars_selected_more_than_half != 'X'])
+    missingness_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_missingness_vars_selected_more_than_half[lasso_union_missingness_vars_selected_more_than_half != 'X']) / num_total_conf
+    missingness_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
+    missingness_results["two_step_lasso_union", "model_SE", repetition]               <- NaN
     
   } # end repetitions loop
   
@@ -892,24 +541,12 @@ run_naive_MI_simulation <- function(n_scenario = NULL,
                          "Causal effect X on Y",
                          "Var in error for Y")
   
-  return (list(FULL_cov_selection,
-               MNAR_cov_selection,
-               MCAR_cov_selection,
-               
+  return (list(missingness_cov_selection,
                TRUE_coefs,
-               FULL_coefs,
-               MNAR_coefs,
-               MCAR_coefs,
-               
-               FULL_results,
-               MNAR_results,
-               MCAR_results,
-               
+               missingness_coefs,
+               missingness_results,
                sample_size_table,
-               
-               FULL_dataset,
-               handled_MNAR_list_of_datasets[[1]],
-               handled_MCAR_list_of_datasets[[1]]
+               handled_missingness_list_of_datasets[[1]]
   ))
 } # function
 

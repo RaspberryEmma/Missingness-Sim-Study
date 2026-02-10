@@ -42,7 +42,8 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
                                       num_unmeas_conf = NULL,
                                       
                                       vars_to_make_unmeasured = NULL,
-                                      vars_to_censor          = NULL) {
+                                      vars_to_censor          = NULL,
+                                      missingness_mechanism   = NULL) {
 
   # ----- Recording results -----
   
@@ -68,39 +69,21 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
   n_var_sel_methods <- length(var_sel_methods)
   n_results         <- length(results_methods)
   
-  FULL_coefs         <- array(data     = NaN,
+  missingness_coefs         <- array(data     = NaN,
                               dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
                               dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  MNAR_coefs         <- array(data     = NaN,
+
+  missingness_cov_selection <- array(data     = NaN,
                               dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
                               dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  MCAR_coefs         <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
-                              dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  
-  FULL_cov_selection <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
-                              dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  MNAR_cov_selection <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
-                              dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  MCAR_cov_selection <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, (n_variables - 1 + 1), n_rep),
-                              dimnames = list(var_sel_methods, var_names_except_Y_with_intercept, 1:n_rep) )
-  
-  FULL_results       <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, n_results, n_rep),
-                              dimnames = list(var_sel_methods, results_methods, 1:n_rep))
-  MNAR_results       <- array(data     = NaN,
-                              dim      = c(n_var_sel_methods, n_results, n_rep),
-                              dimnames = list(var_sel_methods, results_methods, 1:n_rep))
-  MCAR_results       <- array(data     = NaN,
+
+  missingness_results       <- array(data     = NaN,
                               dim      = c(n_var_sel_methods, n_results, n_rep),
                               dimnames = list(var_sel_methods, results_methods, 1:n_rep))
   
   sample_size_table <- array(data     = NaN,
                              dim      = c(3, 2),
-                             dimnames = list(c("None", "MNAR", "MCAR"), c("complete_cases", "sample_size_after_handling")))
+                             dimnames = list(c("None", "missingness", "MCAR"), c("complete_cases", "sample_size_after_handling")))
   
   
   # ----- Simulation procedure ------
@@ -142,365 +125,155 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
                                      vars_to_censor          = vars_to_censor,
                                      var_names               = var_names)
     
-    MNAR_data       <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
-    MNAR_dataset    <- MNAR_data[[1]]
-    MNAR_psel       <- MNAR_data[[2]]
-    MNAR_censorship <- MNAR_data[[3]]
+    if (missingness_mechanism == "MNAR") {
+      missingness_data <- apply_MNAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    } else if (missingness_mechanism == "MCAR") {
+      missingness_data <- apply_MCAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    } else if (missingness_mechanism == "MAR") {
+      missingness_data <- apply_MAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
+    } else {
+      stop("TODO: full data here, structure needs slight work")
+    }
     
-    MCAR_data       <- apply_MCAR_missingness(FULL_dataset, vars_to_censor = vars_to_censor)
-    MCAR_dataset    <- MCAR_data[[1]]
-    MCAR_psel       <- MCAR_data[[2]]
-    MCAR_censorship <- MCAR_data[[3]]
-    
-    message("\n\n Missingness Mechanisms")
-    print("MNAR p(selection into sample)")
-    print(summary(as.factor(MNAR_psel)))
-    
-    print("MCAR p(selection into sample)")
-    print(summary(as.factor(MCAR_psel)))
+    missingness_dataset    <- missingness_data[[1]]
+    missingness_psel       <- missingness_data[[2]]
+    missingness_censorship <- missingness_data[[3]]
     
     # apply dichotomize
-    handled_MNAR_dataset <- apply_dichotomize(data = MNAR_dataset, vars_to_censor = vars_to_censor)
-    handled_MCAR_dataset <- apply_dichotomize(data = MCAR_dataset, vars_to_censor = vars_to_censor)
+    handled_missingness_dataset <- apply_dichotomize(data = missingness_dataset, vars_to_censor = vars_to_censor)
     
     # record sample sizes before and after missingness handling is applied
-    sample_size_table["None", "complete_cases"]             <- dim(FULL_dataset)[1]
-    sample_size_table["None", "sample_size_after_handling"] <- dim(FULL_dataset)[1]
-    sample_size_table["MNAR", "complete_cases"]             <- dim(MNAR_dataset[complete.cases(MNAR_dataset), ])[1]
-    sample_size_table["MNAR", "sample_size_after_handling"] <- dim(handled_MNAR_dataset)[1]
-    sample_size_table["MCAR", "complete_cases"]             <- dim(MCAR_dataset[complete.cases(MCAR_dataset), ])[1]
-    sample_size_table["MCAR", "sample_size_after_handling"] <- dim(handled_MCAR_dataset)[1]
+    sample_size_table["missingness", "complete_cases"]             <- dim(missingness_dataset[complete.cases(missingness_dataset), ])[1]
+    sample_size_table["missingness", "sample_size_after_handling"] <- dim(handled_missingness_dataset)[1]
     
     # cut-up versions of the data as needed
-    X_FULL_dataset <- subset(FULL_dataset, select=-c(Y))
-    Z_FULL_dataset <- subset(FULL_dataset, select=-c(Y, X))
-    Y_FULL_column  <- subset(FULL_dataset, select=c(Y))
-    X_FULL_column  <- subset(FULL_dataset, select=c(X))
-    
-    X_handled_MNAR_dataset <- subset(handled_MNAR_dataset, select=-c(Y))
-    Z_handled_MNAR_dataset <- subset(handled_MNAR_dataset, select=-c(Y, X))
-    Y_handled_MNAR_column  <- subset(handled_MNAR_dataset, select=c(Y))
-    X_handled_MNAR_column  <- subset(handled_MNAR_dataset, select=c(X))
-    
-    X_handled_MCAR_dataset <- subset(handled_MCAR_dataset, select=-c(Y))
-    Z_handled_MCAR_dataset <- subset(handled_MCAR_dataset, select=-c(Y, X))
-    Y_handled_MCAR_column  <- subset(handled_MCAR_dataset, select=c(Y))
-    X_handled_MCAR_column  <- subset(handled_MCAR_dataset, select=c(X))
+    X_handled_missingness_dataset <- subset(handled_missingness_dataset, select=-c(Y))
+    Z_handled_missingness_dataset <- subset(handled_missingness_dataset, select=-c(Y, X))
+    Y_handled_missingness_column  <- subset(handled_missingness_dataset, select=c(Y))
+    X_handled_missingness_column  <- subset(handled_missingness_dataset, select=c(X))
     
     
     # fully adjusted model
-    fully_adjusted_FULL_model  <- lm("Y ~ .", data = FULL_dataset)
-    fully_adjusted_MNAR_model  <- lm("Y ~ .", data = handled_MNAR_dataset)
-    fully_adjusted_MCAR_model  <- lm("Y ~ .", data = handled_MCAR_dataset)
+    fully_adjusted_missingness_model  <- lm("Y ~ .", data = handled_missingness_dataset)
     
     # unadjusted model
     unadjusted_FULL_model  <- lm("Y ~ X", data = FULL_dataset)
-    unadjusted_MNAR_model  <- lm("Y ~ X", data = handled_MNAR_dataset)
+    unadjusted_missingness_model  <- lm("Y ~ X", data = handled_missingness_dataset)
     unadjusted_MCAR_model  <- lm("Y ~ X", data = handled_MCAR_dataset)
     
     
     # LASSO (outcome Y)
     
-    # full dataset
+    # missingness
     
-    cv_lasso_FULL_model <- cv.glmnet(x = data.matrix(X_FULL_dataset), y = data.matrix(Y_FULL_column), alpha=1)
-    lambda              <- cv_lasso_FULL_model$lambda.min
-    lasso_FULL_model    <- glmnet(x = data.matrix(X_FULL_dataset), y = data.matrix(Y_FULL_column), alpha=1, lambda=lambda)
+    cv_lasso_missingness_model <- cv.glmnet(x = data.matrix(X_handled_missingness_dataset), y = data.matrix(Y_handled_missingness_column), alpha=1)
+    lambda              <- cv_lasso_missingness_model$lambda.min
+    lasso_missingness_model    <- glmnet(x = data.matrix(X_handled_missingness_dataset), y = data.matrix(Y_handled_missingness_column), alpha=1, lambda=lambda)
     
-    lasso_FULL_coefs          <- as.vector(lasso_FULL_model$beta)
-    names(lasso_FULL_coefs)   <- rownames(lasso_FULL_model$beta)
-    lasso_FULL_vars_selected  <- union(c('X'), names(lasso_FULL_coefs[lasso_FULL_coefs != 0.0])) # always select X
-    lasso_FULL_vars_selected  <- lasso_FULL_vars_selected[lasso_FULL_vars_selected != "(Intercept)"] # exclude intercept
-    two_step_lasso_FULL_model <- lm(make_model_formula(vars_selected = lasso_FULL_vars_selected), data = FULL_dataset)
-    
-    # MNAR
-    
-    cv_lasso_MNAR_model <- cv.glmnet(x = data.matrix(X_handled_MNAR_dataset), y = data.matrix(Y_handled_MNAR_column), alpha=1)
-    lambda              <- cv_lasso_MNAR_model$lambda.min
-    lasso_MNAR_model    <- glmnet(x = data.matrix(X_handled_MNAR_dataset), y = data.matrix(Y_handled_MNAR_column), alpha=1, lambda=lambda)
-    
-    lasso_MNAR_coefs          <- as.vector(lasso_MNAR_model$beta)
-    names(lasso_MNAR_coefs)   <- rownames(lasso_MNAR_model$beta)
-    lasso_MNAR_vars_selected  <- union(c('X'), names(lasso_MNAR_coefs[lasso_MNAR_coefs != 0.0])) # always select X
-    lasso_MNAR_vars_selected  <- lasso_MNAR_vars_selected[lasso_MNAR_vars_selected != "(Intercept)"] # exclude intercept
-    two_step_lasso_MNAR_model <- lm(make_model_formula(vars_selected = lasso_MNAR_vars_selected), data = handled_MNAR_dataset)
-    
-    # MCAR
-    
-    cv_lasso_MCAR_model <- cv.glmnet(x = data.matrix(X_handled_MCAR_dataset), y = data.matrix(Y_handled_MCAR_column), alpha=1)
-    lambda              <- cv_lasso_MCAR_model$lambda.min
-    lasso_MCAR_model    <- glmnet(x = data.matrix(X_handled_MCAR_dataset), y = data.matrix(Y_handled_MCAR_column), alpha=1, lambda=lambda)
-    
-    lasso_MCAR_coefs          <- as.vector(lasso_MCAR_model$beta)
-    names(lasso_MCAR_coefs)   <- rownames(lasso_MCAR_model$beta)
-    lasso_MCAR_vars_selected  <- union(c('X'), names(lasso_MCAR_coefs[lasso_MCAR_coefs != 0.0])) # always select X
-    lasso_MCAR_vars_selected  <- lasso_MCAR_vars_selected[lasso_MCAR_vars_selected != "(Intercept)"] # exclude intercept
-    two_step_lasso_MCAR_model <- lm(make_model_formula(vars_selected = lasso_MCAR_vars_selected), data = handled_MCAR_dataset)
+    lasso_missingness_coefs          <- as.vector(lasso_missingness_model$beta)
+    names(lasso_missingness_coefs)   <- rownames(lasso_missingness_model$beta)
+    lasso_missingness_vars_selected  <- union(c('X'), names(lasso_missingness_coefs[lasso_missingness_coefs != 0.0])) # always select X
+    lasso_missingness_vars_selected  <- lasso_missingness_vars_selected[lasso_missingness_vars_selected != "(Intercept)"] # exclude intercept
+    two_step_lasso_missingness_model <- lm(make_model_formula(vars_selected = lasso_missingness_vars_selected), data = handled_missingness_dataset)
     
     # LASSO_X (exposure X)
-      
-    # full dataset
     
-    cv_lasso_X_FULL_model <- cv.glmnet(x = data.matrix(Z_FULL_dataset), y = data.matrix(X_FULL_column), alpha=1)
-    lambda                <- cv_lasso_X_FULL_model$lambda.min
-    lasso_X_FULL_model    <- glmnet(x = data.matrix(Z_FULL_dataset), y = data.matrix(X_FULL_column), alpha=1, lambda=lambda)
+    # missingness
     
-    lasso_X_FULL_coefs          <- as.vector(lasso_X_FULL_model$beta)
-    names(lasso_X_FULL_coefs)   <- rownames(lasso_X_FULL_model$beta)
-    lasso_X_FULL_vars_selected  <- union(c('X'), names(lasso_X_FULL_coefs[lasso_X_FULL_coefs != 0.0])) # always select X
-    lasso_X_FULL_vars_selected  <- lasso_X_FULL_vars_selected[lasso_X_FULL_vars_selected != "(Intercept)"] # exclude intercept
-    two_step_lasso_X_FULL_model <- lm(make_model_formula(vars_selected = lasso_X_FULL_vars_selected), data = FULL_dataset)
+    cv_lasso_X_missingness_model <- cv.glmnet(x = data.matrix(Z_handled_missingness_dataset), y = data.matrix(X_handled_missingness_column), alpha=1)
+    lambda                <- cv_lasso_X_missingness_model$lambda.min
+    lasso_X_missingness_model    <- glmnet(x = data.matrix(Z_handled_missingness_dataset), y = data.matrix(X_handled_missingness_column), alpha=1, lambda=lambda)
     
-    # MNAR
-    
-    cv_lasso_X_MNAR_model <- cv.glmnet(x = data.matrix(Z_handled_MNAR_dataset), y = data.matrix(X_handled_MNAR_column), alpha=1)
-    lambda                <- cv_lasso_X_MNAR_model$lambda.min
-    lasso_X_MNAR_model    <- glmnet(x = data.matrix(Z_handled_MNAR_dataset), y = data.matrix(X_handled_MNAR_column), alpha=1, lambda=lambda)
-    
-    lasso_X_MNAR_coefs          <- as.vector(lasso_X_MNAR_model$beta)
-    names(lasso_X_MNAR_coefs)   <- rownames(lasso_X_MNAR_model$beta)
-    lasso_X_MNAR_vars_selected  <- union(c('X'), names(lasso_X_MNAR_coefs[lasso_X_MNAR_coefs != 0.0])) # always select X
-    lasso_X_MNAR_vars_selected  <- lasso_X_MNAR_vars_selected[lasso_X_MNAR_vars_selected != "(Intercept)"] # exclude intercept
-    two_step_lasso_X_MNAR_model <- lm(make_model_formula(vars_selected = lasso_X_MNAR_vars_selected), data = handled_MNAR_dataset)
-    
-    # MCAR
-    
-    cv_lasso_X_MCAR_model <- cv.glmnet(x = data.matrix(Z_handled_MCAR_dataset), y = data.matrix(X_handled_MCAR_column), alpha=1)
-    lambda                <- cv_lasso_X_MCAR_model$lambda.min
-    lasso_X_MCAR_model    <- glmnet(x = data.matrix(Z_handled_MCAR_dataset), y = data.matrix(X_handled_MCAR_column), alpha=1, lambda=lambda)
-    
-    lasso_X_MCAR_coefs          <- as.vector(lasso_X_MCAR_model$beta)
-    names(lasso_X_MCAR_coefs)   <- rownames(lasso_X_MCAR_model$beta)
-    lasso_X_MCAR_vars_selected  <- union(c('X'), names(lasso_X_MCAR_coefs[lasso_X_MCAR_coefs != 0.0])) # always select X
-    lasso_X_MCAR_vars_selected  <- lasso_X_MCAR_vars_selected[lasso_X_MCAR_vars_selected != "(Intercept)"] # exclude intercept
-    two_step_lasso_X_MCAR_model <- lm(make_model_formula(vars_selected = lasso_X_MCAR_vars_selected), data = handled_MCAR_dataset)
+    lasso_X_missingness_coefs          <- as.vector(lasso_X_missingness_model$beta)
+    names(lasso_X_missingness_coefs)   <- rownames(lasso_X_missingness_model$beta)
+    lasso_X_missingness_vars_selected  <- union(c('X'), names(lasso_X_missingness_coefs[lasso_X_missingness_coefs != 0.0])) # always select X
+    lasso_X_missingness_vars_selected  <- lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected != "(Intercept)"] # exclude intercept
+    two_step_lasso_X_missingness_model <- lm(make_model_formula(vars_selected = lasso_X_missingness_vars_selected), data = handled_missingness_dataset)
     
     # LASSO_union (exposure X and outcome Y)
     
-    # full dataset
-    lasso_union_FULL_vars_selected  <- union(lasso_FULL_vars_selected, lasso_X_FULL_vars_selected)
-    two_step_lasso_union_FULL_model <- lm(make_model_formula(vars_selected = lasso_union_FULL_vars_selected), data = FULL_dataset)
-    
-    # MNAR
-    lasso_union_MNAR_vars_selected  <- union(lasso_MNAR_vars_selected, lasso_X_MNAR_vars_selected)
-    two_step_lasso_union_MNAR_model <- lm(make_model_formula(vars_selected = lasso_union_MNAR_vars_selected), data = handled_MNAR_dataset)
-    
-    # MCAR
-    lasso_union_MCAR_vars_selected  <- union(lasso_MCAR_vars_selected, lasso_X_MCAR_vars_selected)
-    two_step_lasso_union_MCAR_model <- lm(make_model_formula(vars_selected = lasso_union_MCAR_vars_selected), data = handled_MCAR_dataset)
+    # missingness
+    lasso_union_missingness_vars_selected  <- union(lasso_missingness_vars_selected, lasso_X_missingness_vars_selected)
+    two_step_lasso_union_missingness_model <- lm(make_model_formula(vars_selected = lasso_union_missingness_vars_selected), data = handled_missingness_dataset)
     
     
     
     # ------ Record covariate selection ------
     
-    FULL_cov_selection["fully_adjusted", , repetition]       <- fill_in_cov_selection(fully_adjusted_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    FULL_cov_selection["unadjusted", , repetition]           <- fill_in_cov_selection(unadjusted_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    FULL_cov_selection["two_step_lasso", , repetition]       <- fill_in_cov_selection(two_step_lasso_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    FULL_cov_selection["two_step_lasso_X", , repetition]     <- fill_in_cov_selection(two_step_lasso_X_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    FULL_cov_selection["two_step_lasso_union", , repetition] <- fill_in_cov_selection(two_step_lasso_union_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    
-    MNAR_cov_selection["fully_adjusted", , repetition]       <- fill_in_cov_selection(fully_adjusted_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    MNAR_cov_selection["unadjusted", , repetition]           <- fill_in_cov_selection(unadjusted_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    MNAR_cov_selection["two_step_lasso", , repetition]       <- fill_in_cov_selection(two_step_lasso_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    MNAR_cov_selection["two_step_lasso_X", , repetition]     <- fill_in_cov_selection(two_step_lasso_X_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    MNAR_cov_selection["two_step_lasso_union", , repetition] <- fill_in_cov_selection(two_step_lasso_union_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    
-    MCAR_cov_selection["fully_adjusted", , repetition]       <- fill_in_cov_selection(fully_adjusted_MCAR_model$coefficients, var_names_except_Y_with_intercept)
-    MCAR_cov_selection["unadjusted", , repetition]           <- fill_in_cov_selection(unadjusted_MCAR_model$coefficients, var_names_except_Y_with_intercept)
-    MCAR_cov_selection["two_step_lasso", , repetition]       <- fill_in_cov_selection(two_step_lasso_MCAR_model$coefficients, var_names_except_Y_with_intercept)
-    MCAR_cov_selection["two_step_lasso_X", , repetition]     <- fill_in_cov_selection(two_step_lasso_X_MCAR_model$coefficients, var_names_except_Y_with_intercept)
-    MCAR_cov_selection["two_step_lasso_union", , repetition] <- fill_in_cov_selection(two_step_lasso_union_MCAR_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_cov_selection["fully_adjusted", , repetition]       <- fill_in_cov_selection(fully_adjusted_missingness_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_cov_selection["unadjusted", , repetition]           <- fill_in_cov_selection(unadjusted_missingness_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_cov_selection["two_step_lasso", , repetition]       <- fill_in_cov_selection(two_step_lasso_missingness_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_cov_selection["two_step_lasso_X", , repetition]     <- fill_in_cov_selection(two_step_lasso_X_missingness_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_cov_selection["two_step_lasso_union", , repetition] <- fill_in_cov_selection(two_step_lasso_union_missingness_model$coefficients, var_names_except_Y_with_intercept)
     
     
     
     # ------ Record coefficients ------
     
-    FULL_coefs["fully_adjusted", , repetition]       <- fill_in_blanks(fully_adjusted_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    FULL_coefs["unadjusted", , repetition]           <- fill_in_blanks(unadjusted_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    FULL_coefs["two_step_lasso", , repetition]       <- fill_in_blanks(two_step_lasso_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    FULL_coefs["two_step_lasso_X", , repetition]     <- fill_in_blanks(two_step_lasso_X_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    FULL_coefs["two_step_lasso_union", , repetition] <- fill_in_blanks(two_step_lasso_union_FULL_model$coefficients, var_names_except_Y_with_intercept)
-    
-    MNAR_coefs["fully_adjusted", , repetition]       <- fill_in_blanks(fully_adjusted_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    MNAR_coefs["unadjusted", , repetition]           <- fill_in_blanks(unadjusted_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    MNAR_coefs["two_step_lasso", , repetition]       <- fill_in_blanks(two_step_lasso_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    MNAR_coefs["two_step_lasso_X", , repetition]     <- fill_in_blanks(two_step_lasso_X_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    MNAR_coefs["two_step_lasso_union", , repetition] <- fill_in_blanks(two_step_lasso_union_MNAR_model$coefficients, var_names_except_Y_with_intercept)
-    
-    MCAR_coefs["fully_adjusted", , repetition]       <- fill_in_blanks(fully_adjusted_MCAR_model$coefficients, var_names_except_Y_with_intercept)
-    MCAR_coefs["unadjusted", , repetition]           <- fill_in_blanks(unadjusted_MCAR_model$coefficients, var_names_except_Y_with_intercept)
-    MCAR_coefs["two_step_lasso", , repetition]       <- fill_in_blanks(two_step_lasso_MCAR_model$coefficients, var_names_except_Y_with_intercept)
-    MCAR_coefs["two_step_lasso_X", , repetition]     <- fill_in_blanks(two_step_lasso_X_MCAR_model$coefficients, var_names_except_Y_with_intercept)
-    MCAR_coefs["two_step_lasso_union", , repetition] <- fill_in_blanks(two_step_lasso_union_MCAR_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_coefs["fully_adjusted", , repetition]       <- fill_in_blanks(fully_adjusted_missingness_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_coefs["unadjusted", , repetition]           <- fill_in_blanks(unadjusted_missingness_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_coefs["two_step_lasso", , repetition]       <- fill_in_blanks(two_step_lasso_missingness_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_coefs["two_step_lasso_X", , repetition]     <- fill_in_blanks(two_step_lasso_X_missingness_model$coefficients, var_names_except_Y_with_intercept)
+    missingness_coefs["two_step_lasso_union", , repetition] <- fill_in_blanks(two_step_lasso_union_missingness_model$coefficients, var_names_except_Y_with_intercept)
     
     
     
     # ------ Record results ------
     
-    FULL_results["fully_adjusted", "causal_true_value", repetition]      <- causal
-    FULL_results["fully_adjusted", "causal_estimate", repetition]        <- unname(fully_adjusted_FULL_model$coefficients['X'])
-    FULL_results["fully_adjusted", "causal_bias", repetition]            <- (unname(fully_adjusted_FULL_model$coefficients['X']) - causal)
-    FULL_results["fully_adjusted", "causal_bias_proportion", repetition] <- ((unname(fully_adjusted_FULL_model$coefficients['X']) - causal)/causal)
-    FULL_results["fully_adjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = fully_adjusted_FULL_model)
-    FULL_results["fully_adjusted", "open_paths", repetition]             <- num_total_conf
-    FULL_results["fully_adjusted", "blocked_paths", repetition]          <- num_meas_conf
-    FULL_results["fully_adjusted", "proportion_paths", repetition]       <- num_meas_conf / num_total_conf
-    FULL_results["fully_adjusted", "empirical_SE", repetition]           <- NaN
-    FULL_results["fully_adjusted", "model_SE", repetition]               <- (coef(summary(fully_adjusted_FULL_model))[, "Std. Error"])['X']
+    missingness_results["fully_adjusted", "causal_true_value", repetition]      <- causal
+    missingness_results["fully_adjusted", "causal_estimate", repetition]        <- unname(fully_adjusted_missingness_model$coefficients['X'])
+    missingness_results["fully_adjusted", "causal_bias", repetition]            <- (unname(fully_adjusted_missingness_model$coefficients['X']) - causal)
+    missingness_results["fully_adjusted", "causal_bias_proportion", repetition] <- ((unname(fully_adjusted_missingness_model$coefficients['X']) - causal)/causal)
+    missingness_results["fully_adjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = fully_adjusted_missingness_model)
+    missingness_results["fully_adjusted", "open_paths", repetition]             <- num_total_conf
+    missingness_results["fully_adjusted", "blocked_paths", repetition]          <- num_meas_conf
+    missingness_results["fully_adjusted", "proportion_paths", repetition]       <- num_meas_conf / num_total_conf
+    missingness_results["fully_adjusted", "empirical_SE", repetition]           <- NaN
+    missingness_results["fully_adjusted", "model_SE", repetition]               <- (coef(summary(fully_adjusted_missingness_model))[, "Std. Error"])['X']
     
-    FULL_results["unadjusted", "causal_true_value", repetition]      <- causal
-    FULL_results["unadjusted", "causal_estimate", repetition]        <- unname(unadjusted_FULL_model$coefficients['X'])
-    FULL_results["unadjusted", "causal_bias", repetition]            <- (unname(unadjusted_FULL_model$coefficients['X']) - causal)
-    FULL_results["unadjusted", "causal_bias_proportion", repetition] <- ((unname(unadjusted_FULL_model$coefficients['X']) - causal)/causal)
-    FULL_results["unadjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = unadjusted_FULL_model)
-    FULL_results["unadjusted", "open_paths", repetition]             <- num_total_conf
-    FULL_results["unadjusted", "blocked_paths", repetition]          <- 0.0
-    FULL_results["unadjusted", "proportion_paths", repetition]       <- 0.0 / num_total_conf
-    FULL_results["unadjusted", "empirical_SE", repetition]           <- NaN
-    FULL_results["unadjusted", "model_SE", repetition]               <- (coef(summary(unadjusted_FULL_model))[, "Std. Error"])['X']
+    missingness_results["unadjusted", "causal_true_value", repetition]      <- causal
+    missingness_results["unadjusted", "causal_estimate", repetition]        <- unname(unadjusted_missingness_model$coefficients['X'])
+    missingness_results["unadjusted", "causal_bias", repetition]            <- (unname(unadjusted_missingness_model$coefficients['X']) - causal)
+    missingness_results["unadjusted", "causal_bias_proportion", repetition] <- ((unname(unadjusted_missingness_model$coefficients['X']) - causal)/causal)
+    missingness_results["unadjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = unadjusted_missingness_model)
+    missingness_results["unadjusted", "open_paths", repetition]             <- num_total_conf
+    missingness_results["unadjusted", "blocked_paths", repetition]          <- 0.0
+    missingness_results["unadjusted", "proportion_paths", repetition]       <- 0.0 / num_total_conf
+    missingness_results["unadjusted", "empirical_SE", repetition]           <- NaN
+    missingness_results["unadjusted", "model_SE", repetition]               <- (coef(summary(unadjusted_missingness_model))[, "Std. Error"])['X']
     
-    FULL_results["two_step_lasso", "causal_true_value", repetition]      <- causal
-    FULL_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_lasso_FULL_model$coefficients['X'])
-    FULL_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_lasso_FULL_model$coefficients['X']) - causal)
-    FULL_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_FULL_model$coefficients['X']) - causal)/causal)
-    FULL_results["two_step_lasso", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_FULL_model)
-    FULL_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
-    FULL_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_FULL_vars_selected[lasso_FULL_vars_selected != 'X'])
-    FULL_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_FULL_vars_selected[lasso_FULL_vars_selected != 'X']) / num_total_conf
-    FULL_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
-    FULL_results["two_step_lasso", "model_SE", repetition]               <- (coef(summary(two_step_lasso_FULL_model))[, "Std. Error"])['X']
+    missingness_results["two_step_lasso", "causal_true_value", repetition]      <- causal
+    missingness_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_lasso_missingness_model$coefficients['X'])
+    missingness_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_lasso_missingness_model$coefficients['X']) - causal)
+    missingness_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_missingness_model$coefficients['X']) - causal)/causal)
+    missingness_results["two_step_lasso", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_missingness_model)
+    missingness_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
+    missingness_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected[lasso_missingness_vars_selected != 'X'])
+    missingness_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected[lasso_missingness_vars_selected != 'X']) / num_total_conf
+    missingness_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
+    missingness_results["two_step_lasso", "model_SE", repetition]               <- (coef(summary(two_step_lasso_missingness_model))[, "Std. Error"])['X']
     
-    FULL_results["two_step_lasso_X", "causal_true_value", repetition]      <- causal
-    FULL_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_lasso_X_FULL_model$coefficients['X'])
-    FULL_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_lasso_X_FULL_model$coefficients['X']) - causal)
-    FULL_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_X_FULL_model$coefficients['X']) - causal)/causal)
-    FULL_results["two_step_lasso_X", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_X_FULL_model)
-    FULL_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
-    FULL_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_FULL_vars_selected[lasso_X_FULL_vars_selected != 'X'])
-    FULL_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_FULL_vars_selected[lasso_X_FULL_vars_selected != 'X']) / num_total_conf
-    FULL_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
-    FULL_results["two_step_lasso_X", "model_SE", repetition]               <- (coef(summary(two_step_lasso_X_FULL_model))[, "Std. Error"])['X']
+    missingness_results["two_step_lasso_X", "causal_true_value", repetition]      <- causal
+    missingness_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_lasso_X_missingness_model$coefficients['X'])
+    missingness_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_lasso_X_missingness_model$coefficients['X']) - causal)
+    missingness_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_X_missingness_model$coefficients['X']) - causal)/causal)
+    missingness_results["two_step_lasso_X", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_X_missingness_model)
+    missingness_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
+    missingness_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected != 'X'])
+    missingness_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected != 'X']) / num_total_conf
+    missingness_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
+    missingness_results["two_step_lasso_X", "model_SE", repetition]               <- (coef(summary(two_step_lasso_X_missingness_model))[, "Std. Error"])['X']
     
-    FULL_results["two_step_lasso_union", "causal_true_value", repetition]      <- causal
-    FULL_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_lasso_union_FULL_model$coefficients['X'])
-    FULL_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_lasso_union_FULL_model$coefficients['X']) - causal)
-    FULL_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_union_FULL_model$coefficients['X']) - causal)/causal)
-    FULL_results["two_step_lasso_union", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_union_FULL_model)
-    FULL_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
-    FULL_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_FULL_vars_selected[lasso_union_FULL_vars_selected != 'X'])
-    FULL_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_FULL_vars_selected[lasso_union_FULL_vars_selected != 'X']) / num_total_conf
-    FULL_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
-    FULL_results["two_step_lasso_union", "model_SE", repetition]               <- (coef(summary(two_step_lasso_union_FULL_model))[, "Std. Error"])['X']
-    
-    MNAR_results["fully_adjusted", "causal_true_value", repetition]      <- causal
-    MNAR_results["fully_adjusted", "causal_estimate", repetition]        <- unname(fully_adjusted_MNAR_model$coefficients['X'])
-    MNAR_results["fully_adjusted", "causal_bias", repetition]            <- (unname(fully_adjusted_MNAR_model$coefficients['X']) - causal)
-    MNAR_results["fully_adjusted", "causal_bias_proportion", repetition] <- ((unname(fully_adjusted_MNAR_model$coefficients['X']) - causal)/causal)
-    MNAR_results["fully_adjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = fully_adjusted_MNAR_model)
-    MNAR_results["fully_adjusted", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["fully_adjusted", "blocked_paths", repetition]          <- num_meas_conf
-    MNAR_results["fully_adjusted", "proportion_paths", repetition]       <- num_meas_conf / num_total_conf
-    MNAR_results["fully_adjusted", "empirical_SE", repetition]           <- NaN
-    MNAR_results["fully_adjusted", "model_SE", repetition]               <- (coef(summary(fully_adjusted_MNAR_model))[, "Std. Error"])['X']
-    
-    MNAR_results["unadjusted", "causal_true_value", repetition]      <- causal
-    MNAR_results["unadjusted", "causal_estimate", repetition]        <- unname(unadjusted_MNAR_model$coefficients['X'])
-    MNAR_results["unadjusted", "causal_bias", repetition]            <- (unname(unadjusted_MNAR_model$coefficients['X']) - causal)
-    MNAR_results["unadjusted", "causal_bias_proportion", repetition] <- ((unname(unadjusted_MNAR_model$coefficients['X']) - causal)/causal)
-    MNAR_results["unadjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = unadjusted_MNAR_model)
-    MNAR_results["unadjusted", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["unadjusted", "blocked_paths", repetition]          <- 0.0
-    MNAR_results["unadjusted", "proportion_paths", repetition]       <- 0.0 / num_total_conf
-    MNAR_results["unadjusted", "empirical_SE", repetition]           <- NaN
-    MNAR_results["unadjusted", "model_SE", repetition]               <- (coef(summary(unadjusted_MNAR_model))[, "Std. Error"])['X']
-    
-    MNAR_results["two_step_lasso", "causal_true_value", repetition]      <- causal
-    MNAR_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_lasso_MNAR_model$coefficients['X'])
-    MNAR_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_lasso_MNAR_model$coefficients['X']) - causal)
-    MNAR_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_MNAR_model$coefficients['X']) - causal)/causal)
-    MNAR_results["two_step_lasso", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_MNAR_model)
-    MNAR_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_MNAR_vars_selected[lasso_MNAR_vars_selected != 'X'])
-    MNAR_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_MNAR_vars_selected[lasso_MNAR_vars_selected != 'X']) / num_total_conf
-    MNAR_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
-    MNAR_results["two_step_lasso", "model_SE", repetition]               <- (coef(summary(two_step_lasso_MNAR_model))[, "Std. Error"])['X']
-    
-    MNAR_results["two_step_lasso_X", "causal_true_value", repetition]      <- causal
-    MNAR_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_lasso_X_MNAR_model$coefficients['X'])
-    MNAR_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_lasso_X_MNAR_model$coefficients['X']) - causal)
-    MNAR_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_X_MNAR_model$coefficients['X']) - causal)/causal)
-    MNAR_results["two_step_lasso_X", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_X_MNAR_model)
-    MNAR_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_MNAR_vars_selected[lasso_X_MNAR_vars_selected != 'X'])
-    MNAR_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_MNAR_vars_selected[lasso_X_MNAR_vars_selected != 'X']) / num_total_conf
-    MNAR_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
-    MNAR_results["two_step_lasso_X", "model_SE", repetition]               <- (coef(summary(two_step_lasso_X_MNAR_model))[, "Std. Error"])['X']
-    
-    MNAR_results["two_step_lasso_union", "causal_true_value", repetition]      <- causal
-    MNAR_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_lasso_union_MNAR_model$coefficients['X'])
-    MNAR_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_lasso_union_MNAR_model$coefficients['X']) - causal)
-    MNAR_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_union_MNAR_model$coefficients['X']) - causal)/causal)
-    MNAR_results["two_step_lasso_union", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_union_MNAR_model)
-    MNAR_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
-    MNAR_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_MNAR_vars_selected[lasso_union_MNAR_vars_selected != 'X'])
-    MNAR_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_MNAR_vars_selected[lasso_union_MNAR_vars_selected != 'X']) / num_total_conf
-    MNAR_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
-    MNAR_results["two_step_lasso_union", "model_SE", repetition]               <- (coef(summary(two_step_lasso_union_MNAR_model))[, "Std. Error"])['X']
-    
-    MCAR_results["fully_adjusted", "causal_true_value", repetition]      <- causal
-    MCAR_results["fully_adjusted", "causal_estimate", repetition]        <- unname(fully_adjusted_MCAR_model$coefficients['X'])
-    MCAR_results["fully_adjusted", "causal_bias", repetition]            <- (unname(fully_adjusted_MCAR_model$coefficients['X']) - causal)
-    MCAR_results["fully_adjusted", "causal_bias_proportion", repetition] <- ((unname(fully_adjusted_MCAR_model$coefficients['X']) - causal)/causal)
-    MCAR_results["fully_adjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = fully_adjusted_MCAR_model)
-    MCAR_results["fully_adjusted", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["fully_adjusted", "blocked_paths", repetition]          <- num_meas_conf
-    MCAR_results["fully_adjusted", "proportion_paths", repetition]       <- num_meas_conf / num_total_conf
-    MCAR_results["fully_adjusted", "empirical_SE", repetition]           <- NaN
-    MCAR_results["fully_adjusted", "model_SE", repetition]               <- (coef(summary(fully_adjusted_MCAR_model))[, "Std. Error"])['X']
-    
-    MCAR_results["unadjusted", "causal_true_value", repetition]      <- causal
-    MCAR_results["unadjusted", "causal_estimate", repetition]        <- unname(unadjusted_MCAR_model$coefficients['X'])
-    MCAR_results["unadjusted", "causal_bias", repetition]            <- (unname(unadjusted_MCAR_model$coefficients['X']) - causal)
-    MCAR_results["unadjusted", "causal_bias_proportion", repetition] <- ((unname(unadjusted_MCAR_model$coefficients['X']) - causal)/causal)
-    MCAR_results["unadjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = unadjusted_MCAR_model)
-    MCAR_results["unadjusted", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["unadjusted", "blocked_paths", repetition]          <- 0.0
-    MCAR_results["unadjusted", "proportion_paths", repetition]       <- 0.0 / num_total_conf
-    MCAR_results["unadjusted", "empirical_SE", repetition]           <- NaN
-    MCAR_results["unadjusted", "model_SE", repetition]               <- (coef(summary(unadjusted_MCAR_model))[, "Std. Error"])['X']
-    
-    MCAR_results["two_step_lasso", "causal_true_value", repetition]      <- causal
-    MCAR_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_lasso_MCAR_model$coefficients['X'])
-    MCAR_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_lasso_MCAR_model$coefficients['X']) - causal)
-    MCAR_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_MCAR_model$coefficients['X']) - causal)/causal)
-    MCAR_results["two_step_lasso", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_MCAR_model)
-    MCAR_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_MCAR_vars_selected[lasso_MCAR_vars_selected != 'X'])
-    MCAR_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_MCAR_vars_selected[lasso_MCAR_vars_selected != 'X']) / num_total_conf
-    MCAR_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
-    MCAR_results["two_step_lasso", "model_SE", repetition]               <- (coef(summary(two_step_lasso_MCAR_model))[, "Std. Error"])['X']
-    
-    MCAR_results["two_step_lasso_X", "causal_true_value", repetition]      <- causal
-    MCAR_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_lasso_X_MCAR_model$coefficients['X'])
-    MCAR_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_lasso_X_MCAR_model$coefficients['X']) - causal)
-    MCAR_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_X_MCAR_model$coefficients['X']) - causal)/causal)
-    MCAR_results["two_step_lasso_X", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_X_MCAR_model)
-    MCAR_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_MCAR_vars_selected[lasso_X_MCAR_vars_selected != 'X'])
-    MCAR_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_MCAR_vars_selected[lasso_X_MCAR_vars_selected != 'X']) / num_total_conf
-    MCAR_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
-    MCAR_results["two_step_lasso_X", "model_SE", repetition]               <- (coef(summary(two_step_lasso_X_MCAR_model))[, "Std. Error"])['X']
-    
-    MCAR_results["two_step_lasso_union", "causal_true_value", repetition]      <- causal
-    MCAR_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_lasso_union_MCAR_model$coefficients['X'])
-    MCAR_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_lasso_union_MCAR_model$coefficients['X']) - causal)
-    MCAR_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_union_MCAR_model$coefficients['X']) - causal)/causal)
-    MCAR_results["two_step_lasso_union", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_union_MCAR_model)
-    MCAR_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
-    MCAR_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_MCAR_vars_selected[lasso_union_MCAR_vars_selected != 'X'])
-    MCAR_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_MCAR_vars_selected[lasso_union_MCAR_vars_selected != 'X']) / num_total_conf
-    MCAR_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
-    MCAR_results["two_step_lasso_union", "model_SE", repetition]               <- (coef(summary(two_step_lasso_union_MCAR_model))[, "Std. Error"])['X']
+    missingness_results["two_step_lasso_union", "causal_true_value", repetition]      <- causal
+    missingness_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_lasso_union_missingness_model$coefficients['X'])
+    missingness_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_lasso_union_missingness_model$coefficients['X']) - causal)
+    missingness_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_union_missingness_model$coefficients['X']) - causal)/causal)
+    missingness_results["two_step_lasso_union", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_union_missingness_model)
+    missingness_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
+    missingness_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_missingness_vars_selected[lasso_union_missingness_vars_selected != 'X'])
+    missingness_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_missingness_vars_selected[lasso_union_missingness_vars_selected != 'X']) / num_total_conf
+    missingness_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
+    missingness_results["two_step_lasso_union", "model_SE", repetition]               <- (coef(summary(two_step_lasso_union_missingness_model))[, "Std. Error"])['X']
     
   } # repetitions loop
   
@@ -534,24 +307,12 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
                          "Causal effect X on Y",
                          "Var in error for Y")
   
-  return (list(FULL_cov_selection,
-               MNAR_cov_selection,
-               MCAR_cov_selection,
-               
+  return (list(missingness_cov_selection,
                TRUE_coefs,
-               FULL_coefs,
-               MNAR_coefs,
-               MCAR_coefs,
-               
-               FULL_results,
-               MNAR_results,
-               MCAR_results,
-               
+               missingness_coefs,
+               missingness_results,
                sample_size_table,
-               
-               FULL_dataset,
-               handled_MNAR_dataset,
-               handled_MCAR_dataset
+               handled_missingness_dataset
   ))
 }
 
