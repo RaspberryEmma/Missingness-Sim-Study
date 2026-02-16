@@ -3,12 +3,12 @@
 #
 # Simulation procedure for confounder-handling
 # with missingness considerations
-# Scenario 2: Naive MI missingness handling
+# Scenario 2: within MI missingness handling
 #
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 01/02/2026
+# Most Recent Edit: 16/02/2026
 # ****************************************
 
 
@@ -44,11 +44,11 @@ source("common.R")
 
 n_scenario   <- 2
 
-n_obs             <- 1000 # 10000
-n_rep             <- 3 # 20
+n_obs             <- 10000
+n_rep             <- 2000
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
-target_r_sq_X     <- 0.8
+target_r_sq_X     <- 0.2
 target_r_sq_Y     <- 0.2
 causal            <- 0.5
 
@@ -57,7 +57,7 @@ num_meas_conf   <- 28
 num_unmeas_conf <- 4
 
 # missingness handling mechanism
-missingness_handling <- "naive_MI"
+missingness_handling <- "within_MI"
 
 # confounders to be unmeasured
 #vars_to_make_unmeasured <- c()
@@ -81,9 +81,9 @@ set.seed(seed$seed)
 
 # ------ Run simulation procedure ------
 
-# naive_MI
-source("missingness_simulation_method_naive_MI.R")
-simulation_results_MNAR <- run_naive_MI_simulation(n_scenario = n_scenario,
+# within_MI
+source("missingness_simulation_method_within_MI.R")
+simulation_results_MNAR <- run_within_MI_simulation(n_scenario = n_scenario,
                                                    n_obs      = n_obs,
                                                    n_rep      = n_rep,
                                                    
@@ -101,7 +101,7 @@ simulation_results_MNAR <- run_naive_MI_simulation(n_scenario = n_scenario,
                                                    vars_to_censor          = vars_to_censor,
                                                    missingness_mechanism   = "MNAR")
 
-simulation_results_MCAR <- run_naive_MI_simulation(n_scenario = n_scenario,
+simulation_results_MCAR <- run_within_MI_simulation(n_scenario = n_scenario,
                                                    n_obs      = n_obs,
                                                    n_rep      = n_rep,
                                                    
@@ -119,7 +119,7 @@ simulation_results_MCAR <- run_naive_MI_simulation(n_scenario = n_scenario,
                                                    vars_to_censor          = vars_to_censor,
                                                    missingness_mechanism   = "MCAR")
 
-simulation_results_MAR <- run_naive_MI_simulation(n_scenario = n_scenario,
+simulation_results_MAR <- run_within_MI_simulation(n_scenario = n_scenario,
                                                   n_obs      = n_obs,
                                                   n_rep      = n_rep,
                                                   

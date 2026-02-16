@@ -8,7 +8,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 01/02/2026
+# Most Recent Edit: 16/02/2026
 # ****************************************
 
 
@@ -44,11 +44,11 @@ source("common.R")
 
 n_scenario   <- "TEST"
 
-n_obs             <- 10000  # small for testing!
-n_rep             <- 2    # small for testing!
+n_obs             <- 1000   # small for testing!
+n_rep             <- 2      # small for testing!
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
-target_r_sq_X     <- 0.8
+target_r_sq_X     <- 0.2
 target_r_sq_Y     <- 0.2
 causal            <- 0.5
 
@@ -140,70 +140,74 @@ print(summary(as.factor(MCAR_psel)))
 print("MAR p(selection into sample)")
 print(summary(as.factor(MAR_psel)))
 
-obj <- lm("Y ~ .", data = MAR_dataset)
+message("R2X, R2Y")
 
-View(obj)
-summary(obj)
+obj <- lm("X ~ .", data = subset(FULL_dataset, select=-c(Y)))
+print("R2X")
+print(summary(obj)$r.squared)
 
+obj <- lm("Y ~ .", data = FULL_dataset)
+print("R2Y")
+print(summary(obj)$r.squared)
 
 
 # ------ Test simulation procedure ------
 
-# CCA
-source("missingness_simulation_method_CCA.R")
-simulation_results_MNAR <- run_CCA_simulation(n_scenario = n_scenario,
-                                              n_obs      = n_obs,
-                                              n_rep      = n_rep,
+# within_MI
+source("missingness_simulation_method_within_MI.R")
+simulation_results_MNAR <- run_within_MI_simulation(n_scenario = n_scenario,
+                                                   n_obs      = n_obs,
+                                                   n_rep      = n_rep,
+                                                   
+                                                   Z_correlation     = Z_correlation,
+                                                   Z_subgroups       = Z_subgroups,
+                                                   target_r_sq_X     = target_r_sq_X,
+                                                   target_r_sq_Y     = target_r_sq_Y,
+                                                   causal            = causal,
+                                                   
+                                                   num_total_conf  = num_total_conf,
+                                                   num_meas_conf   = num_meas_conf,
+                                                   num_unmeas_conf = num_unmeas_conf,
+                                                   
+                                                   vars_to_make_unmeasured = vars_to_make_unmeasured,
+                                                   vars_to_censor          = vars_to_censor,
+                                                   missingness_mechanism   = "MNAR")
 
-                                              Z_correlation     = Z_correlation,
-                                              Z_subgroups       = Z_subgroups,
-                                              target_r_sq_X     = target_r_sq_X,
-                                              target_r_sq_Y     = target_r_sq_Y,
-                                              causal            = causal,
+simulation_results_MCAR <- run_within_MI_simulation(n_scenario = n_scenario,
+                                                   n_obs      = n_obs,
+                                                   n_rep      = n_rep,
+                                                   
+                                                   Z_correlation     = Z_correlation,
+                                                   Z_subgroups       = Z_subgroups,
+                                                   target_r_sq_X     = target_r_sq_X,
+                                                   target_r_sq_Y     = target_r_sq_Y,
+                                                   causal            = causal,
+                                                   
+                                                   num_total_conf  = num_total_conf,
+                                                   num_meas_conf   = num_meas_conf,
+                                                   num_unmeas_conf = num_unmeas_conf,
+                                                   
+                                                   vars_to_make_unmeasured = vars_to_make_unmeasured,
+                                                   vars_to_censor          = vars_to_censor,
+                                                   missingness_mechanism   = "MCAR")
 
-                                              num_total_conf  = num_total_conf,
-                                              num_meas_conf   = num_meas_conf,
-                                              num_unmeas_conf = num_unmeas_conf,
-
-                                              vars_to_make_unmeasured = vars_to_make_unmeasured,
-                                              vars_to_censor          = vars_to_censor,
-                                              missingness_mechanism   = "MNAR")
-
-simulation_results_MCAR <- run_CCA_simulation(n_scenario = n_scenario,
-                                              n_obs      = n_obs,
-                                              n_rep      = n_rep,
-                                              
-                                              Z_correlation     = Z_correlation,
-                                              Z_subgroups       = Z_subgroups,
-                                              target_r_sq_X     = target_r_sq_X,
-                                              target_r_sq_Y     = target_r_sq_Y,
-                                              causal            = causal,
-                                              
-                                              num_total_conf  = num_total_conf,
-                                              num_meas_conf   = num_meas_conf,
-                                              num_unmeas_conf = num_unmeas_conf,
-                                              
-                                              vars_to_make_unmeasured = vars_to_make_unmeasured,
-                                              vars_to_censor          = vars_to_censor,
-                                              missingness_mechanism   = "MCAR")
-
-simulation_results_MAR <- run_CCA_simulation(n_scenario = n_scenario,
-                                              n_obs      = n_obs,
-                                              n_rep      = n_rep,
-                                              
-                                              Z_correlation     = Z_correlation,
-                                              Z_subgroups       = Z_subgroups,
-                                              target_r_sq_X     = target_r_sq_X,
-                                              target_r_sq_Y     = target_r_sq_Y,
-                                              causal            = causal,
-                                              
-                                              num_total_conf  = num_total_conf,
-                                              num_meas_conf   = num_meas_conf,
-                                              num_unmeas_conf = num_unmeas_conf,
-                                              
-                                              vars_to_make_unmeasured = vars_to_make_unmeasured,
-                                              vars_to_censor          = vars_to_censor,
-                                              missingness_mechanism   = "MAR")
+simulation_results_MAR <- run_within_MI_simulation(n_scenario = n_scenario,
+                                                  n_obs      = n_obs,
+                                                  n_rep      = n_rep,
+                                                  
+                                                  Z_correlation     = Z_correlation,
+                                                  Z_subgroups       = Z_subgroups,
+                                                  target_r_sq_X     = target_r_sq_X,
+                                                  target_r_sq_Y     = target_r_sq_Y,
+                                                  causal            = causal,
+                                                  
+                                                  num_total_conf  = num_total_conf,
+                                                  num_meas_conf   = num_meas_conf,
+                                                  num_unmeas_conf = num_unmeas_conf,
+                                                  
+                                                  vars_to_make_unmeasured = vars_to_make_unmeasured,
+                                                  vars_to_censor          = vars_to_censor,
+                                                  missingness_mechanism   = "MAR")
 
 
 

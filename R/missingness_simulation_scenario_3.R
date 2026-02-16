@@ -3,12 +3,12 @@
 #
 # Simulation procedure for confounder-handling
 # with missingness considerations
-# Scenario 3: Stacked MI missingness handling
+# Scenario 3: across MI missingness handling
 #
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 01/02/2026
+# Most Recent Edit: 16/02/2026
 # ****************************************
 
 
@@ -45,10 +45,10 @@ source("common.R")
 n_scenario   <- 3
 
 n_obs             <- 10000
-n_rep             <- 20
+n_rep             <- 2000
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
-target_r_sq_X     <- 0.8
+target_r_sq_X     <- 0.2
 target_r_sq_Y     <- 0.2
 causal            <- 0.5
 
@@ -57,7 +57,7 @@ num_meas_conf   <- 28
 num_unmeas_conf <- 4
 
 # missingness handling mechanism
-missingness_handling <- "stacked_MI"
+missingness_handling <- "across_MI"
 
 # confounders to be unmeasured
 #vars_to_make_unmeasured <- c()
@@ -80,9 +80,9 @@ set.seed(seed$seed)
 
 # ------ Run simulation procedure ------
 
-# stacked_MI
-source("missingness_simulation_method_stacked_MI.R")
-simulation_results_MNAR <- run_stacked_MI_simulation(n_scenario = n_scenario,
+# across_MI
+source("missingness_simulation_method_across_MI.R")
+simulation_results_MNAR <- run_across_MI_simulation(n_scenario = n_scenario,
                                                      n_obs      = n_obs,
                                                      n_rep      = n_rep,
                                                      
@@ -100,7 +100,7 @@ simulation_results_MNAR <- run_stacked_MI_simulation(n_scenario = n_scenario,
                                                      vars_to_censor          = vars_to_censor,
                                                      missingness_mechanism   = "MNAR")
 
-simulation_results_MCAR <- run_stacked_MI_simulation(n_scenario = n_scenario,
+simulation_results_MCAR <- run_across_MI_simulation(n_scenario = n_scenario,
                                                      n_obs      = n_obs,
                                                      n_rep      = n_rep,
                                                      
@@ -118,7 +118,7 @@ simulation_results_MCAR <- run_stacked_MI_simulation(n_scenario = n_scenario,
                                                      vars_to_censor          = vars_to_censor,
                                                      missingness_mechanism   = "MCAR")
 
-simulation_results_MAR <- run_stacked_MI_simulation(n_scenario = n_scenario,
+simulation_results_MAR <- run_across_MI_simulation(n_scenario = n_scenario,
                                                     n_obs      = n_obs,
                                                     n_rep      = n_rep,
                                                     

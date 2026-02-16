@@ -8,7 +8,7 @@
 # Emma Tarmey
 #
 # Started:          06/10/2025
-# Most Recent Edit: 01/02/2026
+# Most Recent Edit: 16/02/2026
 # ****************************************
 
 
@@ -45,10 +45,10 @@ source("common.R")
 n_scenario   <- 5
 
 n_obs             <- 10000
-n_rep             <- 20
+n_rep             <- 2000
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
-target_r_sq_X     <- 0.8
+target_r_sq_X     <- 0.2
 target_r_sq_Y     <- 0.2
 causal            <- 0.5
 
