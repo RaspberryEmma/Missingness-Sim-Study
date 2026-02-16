@@ -44,7 +44,7 @@ source("common.R")
 
 n_scenario   <- "TEST"
 
-n_obs             <- 1000   # small for testing!
+n_obs             <- 10000   # small for testing!
 n_rep             <- 2      # small for testing!
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
@@ -130,25 +130,6 @@ MAR_dataset    <- MAR_data[[1]]
 MAR_psel       <- MAR_data[[2]]
 MAR_censorship <- MAR_data[[3]]
 
-message("\n\n Missingness Mechanisms")
-print("MNAR p(selection into sample)")
-print(summary(as.factor(MNAR_psel)))
-
-print("MCAR p(selection into sample)")
-print(summary(as.factor(MCAR_psel)))
-
-print("MAR p(selection into sample)")
-print(summary(as.factor(MAR_psel)))
-
-message("R2X, R2Y")
-
-obj <- lm("X ~ .", data = subset(FULL_dataset, select=-c(Y)))
-print("R2X")
-print(summary(obj)$r.squared)
-
-obj <- lm("Y ~ .", data = FULL_dataset)
-print("R2Y")
-print(summary(obj)$r.squared)
 
 
 # ------ Test simulation procedure ------
@@ -237,6 +218,25 @@ sample_handled_MAR_dataset  <- simulation_results_MCAR[[6]]
 
 
 # ----- Save results -----
+
+
+message("\n\nCoefficients")
+
+print(TRUE_coefs)
+
+
+message("\n\nR2X, R2Y")
+
+obj <- lm("X ~ .", data = subset(FULL_dataset, select=-c(Y)))
+print("R2X")
+print(summary(obj)$r.squared)
+
+obj <- lm("Y ~ .", data = FULL_dataset)
+print("R2Y")
+print(summary(obj)$r.squared)
+
+
+stop("send above to Kate")
 
 # take mean across all repetitions
 final_MNAR_cov_selection <- as.data.frame(apply(MNAR_cov_selection, c(1,2), mean))
