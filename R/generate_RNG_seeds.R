@@ -27,7 +27,7 @@ RNGkind()
 R.version
 
 # Simulation parameters (upper limits where applicable)
-n_scen        <- 5
+n_scen        <- 6
 n_rep         <- 2000
 n_obs         <- 10000
 n_base_var    <- (32 + 3) # number of variables with no prior cause (all confounders + unseen prior + 2 error terms)

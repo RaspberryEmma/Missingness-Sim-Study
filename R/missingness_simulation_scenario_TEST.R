@@ -297,20 +297,20 @@ names(sim_setup) <- c("n_obs",
 
 
 # Save to file
-id_string <- paste("missingness_sim_scenario_", n_scenario, "_missingness_method_", missingness_handling, sep='')
+id_string <- paste("method_", missingness_handling, sep='')
 
-write.csv(final_MNAR_cov_selection,   paste("../data/", id_string, "_MNAR_cov_selection.csv", sep=''))
-write.csv(final_MCAR_cov_selection,   paste("../data/", id_string, "_MCAR_cov_selection.csv", sep=''))
-write.csv(final_MAR_cov_selection,    paste("../data/", id_string, "_MAR_cov_selection.csv", sep=''))
+write.csv(final_MNAR_cov_selection,   paste("../data/scenario_", n_scenario, "/", id_string, "_MNAR_cov_selection.csv", sep=''))
+write.csv(final_MCAR_cov_selection,   paste("../data/scenario_", n_scenario, "/", id_string, "_MCAR_cov_selection.csv", sep=''))
+write.csv(final_MAR_cov_selection,    paste("../data/scenario_", n_scenario, "/", id_string, "_MAR_cov_selection.csv", sep=''))
 
-write.csv(TRUE_coefs,         paste("../data/", id_string, "_TRUE_coefs.csv", sep=''))
-write.csv(final_MNAR_coefs,   paste("../data/", id_string, "_MNAR_coefs.csv", sep=''))
-write.csv(final_MCAR_coefs,   paste("../data/", id_string, "_MCAR_coefs.csv", sep=''))
-write.csv(final_MAR_coefs,   paste("../data/", id_string, "_MAR_coefs.csv", sep=''))
+write.csv(TRUE_coefs,         paste("../data/scenario_", n_scenario, "/", id_string, "_TRUE_coefs.csv", sep=''))
+write.csv(final_MNAR_coefs,   paste("../data/scenario_", n_scenario, "/", id_string, "_MNAR_coefs.csv", sep=''))
+write.csv(final_MCAR_coefs,   paste("../data/scenario_", n_scenario, "/", id_string, "_MCAR_coefs.csv", sep=''))
+write.csv(final_MAR_coefs,    paste("../data/scenario_", n_scenario, "/", id_string, "_MAR_coefs.csv", sep=''))
 
-write.csv(final_MNAR_results,   paste("../data/", id_string, "_MNAR_results.csv", sep=''))
-write.csv(final_MCAR_results,   paste("../data/", id_string, "_MCAR_results.csv", sep=''))
-write.csv(final_MAR_results,    paste("../data/", id_string, "_MAR_results.csv", sep=''))
+write.csv(final_MNAR_results,   paste("../data/scenario_", n_scenario, "/", id_string, "_MNAR_results.csv", sep=''))
+write.csv(final_MCAR_results,   paste("../data/scenario_", n_scenario, "/", id_string, "_MCAR_results.csv", sep=''))
+write.csv(final_MAR_results,    paste("../data/scenario_", n_scenario, "/", id_string, "_MAR_results.csv", sep=''))
 
 
 
