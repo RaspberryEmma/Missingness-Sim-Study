@@ -145,12 +145,8 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     handled_missingness_dataset <- apply_indicator_encoding(data = missingness_dataset, vars_to_censor = vars_to_censor)
     
     # record sample sizes before and after missingness handling is applied
-    sample_size_table["None", "complete_cases"]             <- dim(FULL_dataset)[1]
-    sample_size_table["None", "sample_size_after_handling"] <- dim(FULL_dataset)[1]
     sample_size_table["missingness", "complete_cases"]             <- dim(missingness_dataset[complete.cases(missingness_dataset), ])[1]
     sample_size_table["missingness", "sample_size_after_handling"] <- dim(handled_missingness_dataset)[1]
-    sample_size_table["MCAR", "complete_cases"]             <- dim(MCAR_dataset[complete.cases(MCAR_dataset), ])[1]
-    sample_size_table["MCAR", "sample_size_after_handling"] <- dim(handled_MCAR_dataset)[1]
     
     # cut-up versions of the data as needed
     X_handled_missingness_dataset <- subset(handled_missingness_dataset, select=-c(Y))

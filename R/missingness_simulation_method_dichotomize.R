@@ -61,7 +61,7 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
     indicator_var_names <- paste(vars_to_censor, '_missing', sep='')
   }
   
-  var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''), indicator_var_names)
+  var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''))
   var_names_except_Y                <- var_names[ !var_names == 'Y']
   var_names_except_Y_with_intercept <- c("(Intercept)", var_names_except_Y)
   
@@ -113,10 +113,6 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
                                      target_r_sq_Y     = target_r_sq_Y,
                                      causal            = causal,
                                      
-                                     binary_X          = binary_X,
-                                     binary_Y          = binary_Y,
-                                     binary_Z          = binary_Z,
-                                     
                                      num_total_conf  = num_total_conf,
                                      num_meas_conf   = num_meas_conf,
                                      num_unmeas_conf = num_unmeas_conf,
@@ -157,9 +153,7 @@ run_dichotomize_simulation <- function(n_scenario = NULL,
     fully_adjusted_missingness_model  <- lm("Y ~ .", data = handled_missingness_dataset)
     
     # unadjusted model
-    unadjusted_FULL_model  <- lm("Y ~ X", data = FULL_dataset)
     unadjusted_missingness_model  <- lm("Y ~ X", data = handled_missingness_dataset)
-    unadjusted_MCAR_model  <- lm("Y ~ X", data = handled_MCAR_dataset)
     
     
     # LASSO (outcome Y)
