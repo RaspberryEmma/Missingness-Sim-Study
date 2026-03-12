@@ -13,6 +13,9 @@
 
 # ----- Helper functions -----
 
+# logical inverse of %in% operator
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
 # Helper function for recording coefficients fitted
 # Accounts for the idea that some modelling methods will exclude variables
 # i.e:  Variables correct order with NaNs filling in excluded values

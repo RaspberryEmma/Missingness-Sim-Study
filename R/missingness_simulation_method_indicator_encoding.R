@@ -218,6 +218,10 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     
     # ------ Record results ------
     
+    # backdoor paths blocked is measured by counting the number of variables chosen (for all lasso variants)
+    # indicator variables do not correspond to backdoor paths and are thus excluded
+    vars_not_corr_to_backdoor_path <- c('X', paste0(vars_to_censor, "_missing"))
+    
     missingness_results["fully_adjusted", "causal_true_value", repetition]      <- causal
     missingness_results["fully_adjusted", "causal_estimate", repetition]        <- unname(fully_adjusted_missingness_model$coefficients['X'])
     missingness_results["fully_adjusted", "causal_bias", repetition]            <- (unname(fully_adjusted_missingness_model$coefficients['X']) - causal)
@@ -246,8 +250,8 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_missingness_model$coefficients['X']) - causal)/causal)
     missingness_results["two_step_lasso", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_missingness_model)
     missingness_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
-    missingness_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected[lasso_missingness_vars_selected != 'X'])
-    missingness_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected[lasso_missingness_vars_selected != 'X']) / num_total_conf
+    missingness_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected[lasso_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path])
+    missingness_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected[lasso_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path]) / num_total_conf
     missingness_results["two_step_lasso", "empirical_SE", repetition]           <- NaN
     missingness_results["two_step_lasso", "model_SE", repetition]               <- (coef(summary(two_step_lasso_missingness_model))[, "Std. Error"])['X']
     
@@ -257,8 +261,8 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_X_missingness_model$coefficients['X']) - causal)/causal)
     missingness_results["two_step_lasso_X", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_X_missingness_model)
     missingness_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
-    missingness_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected != 'X'])
-    missingness_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected != 'X']) / num_total_conf
+    missingness_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path])
+    missingness_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path]) / num_total_conf
     missingness_results["two_step_lasso_X", "empirical_SE", repetition]           <- NaN
     missingness_results["two_step_lasso_X", "model_SE", repetition]               <- (coef(summary(two_step_lasso_X_missingness_model))[, "Std. Error"])['X']
     
@@ -268,8 +272,8 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_union_missingness_model$coefficients['X']) - causal)/causal)
     missingness_results["two_step_lasso_union", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_union_missingness_model)
     missingness_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
-    missingness_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_missingness_vars_selected[lasso_union_missingness_vars_selected != 'X'])
-    missingness_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_missingness_vars_selected[lasso_union_missingness_vars_selected != 'X']) / num_total_conf
+    missingness_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_missingness_vars_selected[lasso_union_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path])
+    missingness_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_missingness_vars_selected[lasso_union_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path]) / num_total_conf
     missingness_results["two_step_lasso_union", "empirical_SE", repetition]           <- NaN
     missingness_results["two_step_lasso_union", "model_SE", repetition]               <- (coef(summary(two_step_lasso_union_missingness_model))[, "Std. Error"])['X']
     
