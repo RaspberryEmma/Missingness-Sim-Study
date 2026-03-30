@@ -199,7 +199,7 @@ estimate_within_CI <- function(estimate       = NULL,
   
   # inverse t score
   # 2 sided test for 95% confidence interval
-  t_score <- tinv(p = 0.975, nu = sample_size - 2)
+  t_score <- qt(p = 0.975, df = sample_size - 2)
   
   # upper and lower bounds of the confidence interval
   upper_bound <- estimate + (t_score * standard_error)
