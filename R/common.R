@@ -191,15 +191,22 @@ beta_Y_subgroups_formula <- function(beta_X = NULL) {
   return (beta_Ys)
 }
 
-
-estimate_within_CI <- function(model = NULL) {
-  within_CI <- 0.0
+estimate_within_CI <- function(estimate       = NULL,
+                               true_value     = NULL,
+                               standard_error = NULL,
+                               sample_size    = NULL) {
+  within_CI   <- 0.0
   
-  CI        <- confint(model, 'X', level = 0.95)
-  if ((!is.na(CI[1])) && (!is.na(CI[2]))) {
-    if ((causal > CI[1]) && (causal < CI[2])) {
-      within_CI <- 1.0
-    }
+  # inverse t score
+  # 2 sided test for 95% confidence interval
+  t_score <- tinv(p = 0.975, nu = sample_size - 2)
+  
+  # upper and lower bounds of the confidence interval
+  upper_bound <- estimate + (t_score * standard_error)
+  lower_bound <- estimate - (t_score * standard_error)
+  
+  if ((true_value <= upper_bound) && (true_value >= lower_bound)) {
+    within_CI <- 1.0
   }
   
   return (within_CI)

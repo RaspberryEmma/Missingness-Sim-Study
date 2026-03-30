@@ -175,6 +175,17 @@ run_within_MI_simulation <- function(n_scenario = NULL,
     # dataframe to store variable selection results across all imputed datasets
     lasso_missingness_vars_selected_all_imputations <- data.frame()
     
+    # fully-adjusted
+    all_available_vars <- var_names_except_Y[var_names_except_Y %!in% vars_to_make_unmeasured]
+    fully_adjusted_missingness_models   <- with(handled_missingness_imputation_object,
+                                                eval(parse(text=paste0("glm(", make_model_formula(vars_selected = all_available_vars), ", family = 'gaussian')"))))
+    fully_adjusted_missingness_estimate <- summary(pool(fully_adjusted_missingness_models))
+    
+    # unadjusted
+    unadjusted_missingness_models   <- with(handled_missingness_imputation_object,
+                                            eval(parse(text=paste0("glm(Y ~ X, family = 'gaussian')"))))
+    unadjusted_missingness_estimate <- summary(pool(unadjusted_missingness_models))
+    
     # MI LASSO
     for (i in c(1:20)) {
       handled_missingness_dataset <- complete(handled_missingness_imputation_object, action = i)
@@ -299,11 +310,42 @@ run_within_MI_simulation <- function(n_scenario = NULL,
     
     # ----- Record results -----
     
+    missingness_results["fully_adjusted", "causal_true_value", repetition]      <- causal
+    missingness_results["fully_adjusted", "causal_estimate", repetition]        <- fully_adjusted_missingness_estimate[which(fully_adjusted_missingness_estimate$term == "X")[[1]], "estimate"]
+    missingness_results["fully_adjusted", "causal_bias", repetition]            <- (fully_adjusted_missingness_estimate[which(fully_adjusted_missingness_estimate$term == "X")[[1]], "estimate"] - causal)
+    missingness_results["fully_adjusted", "causal_bias_proportion", repetition] <- ((fully_adjusted_missingness_estimate[which(fully_adjusted_missingness_estimate$term == "X")[[1]], "estimate"] - causal) / causal)
+    missingness_results["fully_adjusted", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = fully_adjusted_missingness_estimate[which(fully_adjusted_missingness_estimate$term == "X")[[1]], "estimate"],
+                                                                                                      true_value     = causal,
+                                                                                                      standard_error = fully_adjusted_missingness_estimate[which(fully_adjusted_missingness_estimate$term == "X")[[1]], "std.error"],
+                                                                                                      sample_size    = dim(handled_missingness_imputation_object$data)[1])
+    missingness_results["fully_adjusted", "open_paths", repetition]             <- num_total_conf
+    missingness_results["fully_adjusted", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X'])
+    missingness_results["fully_adjusted", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X']) / num_total_conf
+    missingness_results["fully_adjusted", "empirical_SE", repetition]           <- NaN
+    missingness_results["fully_adjusted", "model_SE", repetition]               <- fully_adjusted_missingness_estimate[which(fully_adjusted_missingness_estimate$term == "X")[[1]], "std.error"]
+    
+    missingness_results["unadjusted", "causal_true_value", repetition]      <- causal
+    missingness_results["unadjusted", "causal_estimate", repetition]        <- unadjusted_missingness_estimate[which(unadjusted_missingness_estimate$term == "X")[[1]], "estimate"]
+    missingness_results["unadjusted", "causal_bias", repetition]            <- (unadjusted_missingness_estimate[which(unadjusted_missingness_estimate$term == "X")[[1]], "estimate"] - causal)
+    missingness_results["unadjusted", "causal_bias_proportion", repetition] <- ((unadjusted_missingness_estimate[which(unadjusted_missingness_estimate$term == "X")[[1]], "estimate"] - causal) / causal)
+    missingness_results["unadjusted", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = unadjusted_missingness_estimate[which(unadjusted_missingness_estimate$term == "X")[[1]], "estimate"],
+                                                                                                  true_value     = causal,
+                                                                                                  standard_error = unadjusted_missingness_estimate[which(unadjusted_missingness_estimate$term == "X")[[1]], "std.error"],
+                                                                                                  sample_size    = dim(handled_missingness_imputation_object$data)[1])
+    missingness_results["unadjusted", "open_paths", repetition]             <- num_total_conf
+    missingness_results["unadjusted", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X'])
+    missingness_results["unadjusted", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X']) / num_total_conf
+    missingness_results["unadjusted", "empirical_SE", repetition]           <- NaN
+    missingness_results["unadjusted", "model_SE", repetition]               <- unadjusted_missingness_estimate[which(unadjusted_missingness_estimate$term == "X")[[1]], "std.error"]
+    
     missingness_results["two_step_lasso", "causal_true_value", repetition]      <- causal
     missingness_results["two_step_lasso", "causal_estimate", repetition]        <- two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "estimate"]
     missingness_results["two_step_lasso", "causal_bias", repetition]            <- (two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "estimate"] - causal)
     missingness_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "estimate"] - causal) / causal)
-    missingness_results["two_step_lasso", "causal_coverage", repetition]        <- NaN
+    missingness_results["two_step_lasso", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "estimate"],
+                                                                                                      true_value     = causal,
+                                                                                                      standard_error = two_step_LASSO_missingness_estimate[which(two_step_LASSO_missingness_estimate$term == "X")[[1]], "std.error"],
+                                                                                                      sample_size    = dim(handled_missingness_imputation_object$data)[1])
     missingness_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X'])
     missingness_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X']) / num_total_conf
@@ -314,7 +356,10 @@ run_within_MI_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso_X", "causal_estimate", repetition]        <- two_step_LASSO_X_missingness_estimate[which(two_step_LASSO_X_missingness_estimate$term == "X")[[1]], "estimate"]
     missingness_results["two_step_lasso_X", "causal_bias", repetition]            <- (two_step_LASSO_X_missingness_estimate[which(two_step_LASSO_X_missingness_estimate$term == "X")[[1]], "estimate"] - causal)
     missingness_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- (two_step_LASSO_X_missingness_estimate[which(two_step_LASSO_X_missingness_estimate$term == "X")[[1]], "estimate"] - causal) / causal
-    missingness_results["two_step_lasso_X", "causal_coverage", repetition]        <- NaN
+    missingness_results["two_step_lasso_X", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = two_step_LASSO_X_missingness_estimate[which(two_step_LASSO_X_missingness_estimate$term == "X")[[1]], "estimate"],
+                                                                                                        true_value     = causal,
+                                                                                                        standard_error = two_step_LASSO_X_missingness_estimate[which(two_step_LASSO_X_missingness_estimate$term == "X")[[1]], "std.error"],
+                                                                                                        sample_size    = dim(handled_missingness_imputation_object$data)[1])
     missingness_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_missingness_vars_selected_more_than_half[lasso_X_missingness_vars_selected_more_than_half != 'X'])
     missingness_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_missingness_vars_selected_more_than_half[lasso_X_missingness_vars_selected_more_than_half != 'X']) / num_total_conf
@@ -325,7 +370,10 @@ run_within_MI_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso_union", "causal_estimate", repetition]        <- two_step_LASSO_union_missingness_estimate[which(two_step_LASSO_union_missingness_estimate$term == "X")[[1]], "estimate"]
     missingness_results["two_step_lasso_union", "causal_bias", repetition]            <- (two_step_LASSO_union_missingness_estimate[which(two_step_LASSO_union_missingness_estimate$term == "X")[[1]], "estimate"] - causal)
     missingness_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- (two_step_LASSO_union_missingness_estimate[which(two_step_LASSO_union_missingness_estimate$term == "X")[[1]], "estimate"] - causal) / causal
-    missingness_results["two_step_lasso_union", "causal_coverage", repetition]        <- NaN
+    missingness_results["two_step_lasso_union", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = two_step_LASSO_union_missingness_estimate[which(two_step_LASSO_union_missingness_estimate$term == "X")[[1]], "estimate"],
+                                                                                                            true_value     = causal,
+                                                                                                            standard_error = two_step_LASSO_union_missingness_estimate[which(two_step_LASSO_union_missingness_estimate$term == "X")[[1]], "std.error"],
+                                                                                                            sample_size    = dim(handled_missingness_imputation_object$data)[1])
     missingness_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_missingness_vars_selected_more_than_half[lasso_union_missingness_vars_selected_more_than_half != 'X'])
     missingness_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_missingness_vars_selected_more_than_half[lasso_union_missingness_vars_selected_more_than_half != 'X']) / num_total_conf

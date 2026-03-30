@@ -28,7 +28,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dplyr", "glmnet", "mice", "speedglm", "tidyr")
+using("dplyr", "glmnet", "mice", "PEIP", "speedglm", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
@@ -45,7 +45,7 @@ source("common.R")
 n_scenario   <- 1
 
 n_obs             <- 10000
-n_rep             <- 2000
+n_rep             <- 20 # 2000
 Z_correlation     <- 0.1
 Z_subgroups       <- 4
 target_r_sq_X     <- 0.2

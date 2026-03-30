@@ -226,7 +226,10 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     missingness_results["fully_adjusted", "causal_estimate", repetition]        <- unname(fully_adjusted_missingness_model$coefficients['X'])
     missingness_results["fully_adjusted", "causal_bias", repetition]            <- (unname(fully_adjusted_missingness_model$coefficients['X']) - causal)
     missingness_results["fully_adjusted", "causal_bias_proportion", repetition] <- ((unname(fully_adjusted_missingness_model$coefficients['X']) - causal)/causal)
-    missingness_results["fully_adjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = fully_adjusted_missingness_model)
+    missingness_results["fully_adjusted", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = unname(fully_adjusted_missingness_model$coefficients['X']),
+                                                                                                      true_value     = causal,
+                                                                                                      standard_error = (coef(summary(fully_adjusted_missingness_model))[, "Std. Error"])['X'],
+                                                                                                      sample_size    = dim(handled_missingness_dataset)[1])
     missingness_results["fully_adjusted", "open_paths", repetition]             <- num_total_conf
     missingness_results["fully_adjusted", "blocked_paths", repetition]          <- num_meas_conf
     missingness_results["fully_adjusted", "proportion_paths", repetition]       <- num_meas_conf / num_total_conf
@@ -237,7 +240,10 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     missingness_results["unadjusted", "causal_estimate", repetition]        <- unname(unadjusted_missingness_model$coefficients['X'])
     missingness_results["unadjusted", "causal_bias", repetition]            <- (unname(unadjusted_missingness_model$coefficients['X']) - causal)
     missingness_results["unadjusted", "causal_bias_proportion", repetition] <- ((unname(unadjusted_missingness_model$coefficients['X']) - causal)/causal)
-    missingness_results["unadjusted", "causal_coverage", repetition]        <- estimate_within_CI(model = unadjusted_missingness_model)
+    missingness_results["unadjusted", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = unname(unadjusted_missingness_model$coefficients['X']),
+                                                                                                  true_value     = causal,
+                                                                                                  standard_error = (coef(summary(unadjusted_missingness_model))[, "Std. Error"])['X'],
+                                                                                                  sample_size    = dim(handled_missingness_dataset)[1])
     missingness_results["unadjusted", "open_paths", repetition]             <- num_total_conf
     missingness_results["unadjusted", "blocked_paths", repetition]          <- 0.0
     missingness_results["unadjusted", "proportion_paths", repetition]       <- 0.0 / num_total_conf
@@ -248,7 +254,10 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso", "causal_estimate", repetition]        <- unname(two_step_lasso_missingness_model$coefficients['X'])
     missingness_results["two_step_lasso", "causal_bias", repetition]            <- (unname(two_step_lasso_missingness_model$coefficients['X']) - causal)
     missingness_results["two_step_lasso", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_missingness_model$coefficients['X']) - causal)/causal)
-    missingness_results["two_step_lasso", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_missingness_model)
+    missingness_results["two_step_lasso", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = unname(two_step_lasso_missingness_model$coefficients['X']),
+                                                                                                      true_value     = causal,
+                                                                                                      standard_error = (coef(summary(two_step_lasso_missingness_model))[, "Std. Error"])['X'],
+                                                                                                      sample_size    = dim(handled_missingness_dataset)[1])
     missingness_results["two_step_lasso", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected[lasso_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path])
     missingness_results["two_step_lasso", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected[lasso_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path]) / num_total_conf
@@ -259,7 +268,10 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso_X", "causal_estimate", repetition]        <- unname(two_step_lasso_X_missingness_model$coefficients['X'])
     missingness_results["two_step_lasso_X", "causal_bias", repetition]            <- (unname(two_step_lasso_X_missingness_model$coefficients['X']) - causal)
     missingness_results["two_step_lasso_X", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_X_missingness_model$coefficients['X']) - causal)/causal)
-    missingness_results["two_step_lasso_X", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_X_missingness_model)
+    missingness_results["two_step_lasso_X", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = unname(two_step_lasso_X_missingness_model$coefficients['X']),
+                                                                                                        true_value     = causal,
+                                                                                                        standard_error = (coef(summary(two_step_lasso_X_missingness_model))[, "Std. Error"])['X'],
+                                                                                                        sample_size    = dim(handled_missingness_dataset)[1])
     missingness_results["two_step_lasso_X", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso_X", "blocked_paths", repetition]          <- length(lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path])
     missingness_results["two_step_lasso_X", "proportion_paths", repetition]       <- length(lasso_X_missingness_vars_selected[lasso_X_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path]) / num_total_conf
@@ -270,7 +282,10 @@ run_indicator_encoding_simulation <- function(n_scenario = NULL,
     missingness_results["two_step_lasso_union", "causal_estimate", repetition]        <- unname(two_step_lasso_union_missingness_model$coefficients['X'])
     missingness_results["two_step_lasso_union", "causal_bias", repetition]            <- (unname(two_step_lasso_union_missingness_model$coefficients['X']) - causal)
     missingness_results["two_step_lasso_union", "causal_bias_proportion", repetition] <- ((unname(two_step_lasso_union_missingness_model$coefficients['X']) - causal)/causal)
-    missingness_results["two_step_lasso_union", "causal_coverage", repetition]        <- estimate_within_CI(model = two_step_lasso_union_missingness_model)
+    missingness_results["two_step_lasso_union", "causal_coverage", repetition]        <- estimate_within_CI(estimate       = unname(two_step_lasso_union_missingness_model$coefficients['X']),
+                                                                                                            true_value     = causal,
+                                                                                                            standard_error = (coef(summary(two_step_lasso_union_missingness_model))[, "Std. Error"])['X'],
+                                                                                                            sample_size    = dim(handled_missingness_dataset)[1])
     missingness_results["two_step_lasso_union", "open_paths", repetition]             <- num_total_conf
     missingness_results["two_step_lasso_union", "blocked_paths", repetition]          <- length(lasso_union_missingness_vars_selected[lasso_union_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path])
     missingness_results["two_step_lasso_union", "proportion_paths", repetition]       <- length(lasso_union_missingness_vars_selected[lasso_union_missingness_vars_selected %!in% vars_not_corr_to_backdoor_path]) / num_total_conf
