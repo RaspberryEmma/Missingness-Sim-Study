@@ -303,9 +303,35 @@ run_within_MI_simulation <- function(n_scenario = NULL,
     
     # ----- Record covariate selection -----
     
+    missingness_cov_selection["fully_adjusted", , repetition]       <- vars_selected_string_to_binary(vars_selected = var_names_except_Y,                                   var_names = var_names_except_Y_with_intercept)
+    missingness_cov_selection["unadjusted", , repetition]           <- vars_selected_string_to_binary(vars_selected = c(),                                                  var_names = var_names_except_Y_with_intercept)
     missingness_cov_selection["two_step_lasso", , repetition]       <- vars_selected_string_to_binary(vars_selected = lasso_missingness_vars_selected_more_than_half,       var_names = var_names_except_Y_with_intercept)
     missingness_cov_selection["two_step_lasso_X", , repetition]     <- vars_selected_string_to_binary(vars_selected = lasso_X_missingness_vars_selected_more_than_half,     var_names = var_names_except_Y_with_intercept)
     missingness_cov_selection["two_step_lasso_union", , repetition] <- vars_selected_string_to_binary(vars_selected = lasso_union_missingness_vars_selected_more_than_half, var_names = var_names_except_Y_with_intercept)
+    
+    
+    # ------ Record coefficients ------
+    
+    fully_adjusted_missingness_estimate_coefs        <- fully_adjusted_missingness_estimate$estimate
+    names(fully_adjusted_missingness_estimate_coefs) <- fully_adjusted_missingness_estimate$term
+    
+    unadjusted_missingness_estimate_coefs        <- unadjusted_missingness_estimate$estimate
+    names(unadjusted_missingness_estimate_coefs) <- unadjusted_missingness_estimate$term
+    
+    two_step_LASSO_missingness_estimate_coefs        <- two_step_LASSO_missingness_estimate$estimate
+    names(two_step_LASSO_missingness_estimate_coefs) <- two_step_LASSO_missingness_estimate$term
+    
+    two_step_LASSO_X_missingness_estimate_coefs        <- two_step_LASSO_X_missingness_estimate$estimate
+    names(two_step_LASSO_X_missingness_estimate_coefs) <- two_step_LASSO_X_missingness_estimate$term
+    
+    two_step_LASSO_union_missingness_estimate_coefs        <- two_step_LASSO_union_missingness_estimate$estimate
+    names(two_step_LASSO_union_missingness_estimate_coefs) <- two_step_LASSO_union_missingness_estimate$term
+    
+    missingness_coefs["fully_adjusted", , repetition]       <- fill_in_blanks(fully_adjusted_missingness_estimate_coefs, var_names_except_Y_with_intercept)
+    missingness_coefs["unadjusted", , repetition]           <- fill_in_blanks(unadjusted_missingness_estimate_coefs, var_names_except_Y_with_intercept)
+    missingness_coefs["two_step_lasso", , repetition]       <- fill_in_blanks(two_step_LASSO_missingness_estimate_coefs, var_names_except_Y_with_intercept)
+    missingness_coefs["two_step_lasso_X", , repetition]     <- fill_in_blanks(two_step_LASSO_X_missingness_estimate_coefs, var_names_except_Y_with_intercept)
+    missingness_coefs["two_step_lasso_union", , repetition] <- fill_in_blanks(two_step_LASSO_union_missingness_estimate_coefs, var_names_except_Y_with_intercept)
     
     
     # ----- Record results -----
@@ -333,8 +359,8 @@ run_within_MI_simulation <- function(n_scenario = NULL,
                                                                                                   standard_error = unadjusted_missingness_estimate[which(unadjusted_missingness_estimate$term == "X")[[1]], "std.error"],
                                                                                                   sample_size    = dim(handled_missingness_imputation_object$data)[1])
     missingness_results["unadjusted", "open_paths", repetition]             <- num_total_conf
-    missingness_results["unadjusted", "blocked_paths", repetition]          <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X'])
-    missingness_results["unadjusted", "proportion_paths", repetition]       <- length(lasso_missingness_vars_selected_more_than_half[lasso_missingness_vars_selected_more_than_half != 'X']) / num_total_conf
+    missingness_results["unadjusted", "blocked_paths", repetition]          <- 0.0
+    missingness_results["unadjusted", "proportion_paths", repetition]       <- 0.0 / num_total_conf
     missingness_results["unadjusted", "empirical_SE", repetition]           <- NaN
     missingness_results["unadjusted", "model_SE", repetition]               <- unadjusted_missingness_estimate[which(unadjusted_missingness_estimate$term == "X")[[1]], "std.error"]
     
