@@ -1,1 +1,1 @@
-Variant of the confounder handling simulation study with missingness considerations. 
+Simulation study comparing variable selection and missing data handling methods.
